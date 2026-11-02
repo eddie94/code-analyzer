@@ -81,7 +81,7 @@ export function buildDataFlow(index: GraphIndex, steps: StepFlow, id: string): D
     const tested = conditions.filter((c) => BRANCHES.has(c.kind)).map((c) => c.text);
     items.push({
       line: exit.line,
-      col: 0,
+      col: 1e9, // after the calls on its line: `return f(x)` calls f first
       row: { type: "exit", exit, when: namesIn(tested.join(" "), variables), conditions },
     });
   }

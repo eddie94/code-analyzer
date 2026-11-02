@@ -43,6 +43,14 @@ const graph: Graph = {
       flow: { steps: [step(20, "httpx.get", { library: "httpx.get" })] },
     },
     { id: "fn:app.covers", kind: "function", name: "covers", qualname: "app.covers", parent: "mod:app" },
+    {
+      id: "fn:app.handler", kind: "function", name: "handler", qualname: "app.handler", parent: "mod:app",
+      flow: {
+        params: ["q"],
+        steps: [step(5, "search", { col: 17, targets: ["fn:app.search"], inputs: ["q"] })],
+        exits: [{ kind: "return", line: 5, value: "await search(q)" }],
+      },
+    },
   ],
   edges: [],
   issues: [],
@@ -81,6 +89,11 @@ describe("buildDataFlow", () => {
       "[] ⇢ return hits, art",
     ]);
     expect(data.hidden).toBe(1);
+  });
+
+  it("puts a return after the call on its own line", () => {
+    const handler = buildDataFlow(index, new StepFlow(index), "fn:app.handler")!;
+    expect(outline(handler.rows)).toEqual(["[q] → search → []", "[] ⇢ return await search(q)"]);
   });
 
   it("names the class behind a receiver", () => {

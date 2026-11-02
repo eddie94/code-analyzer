@@ -84,7 +84,7 @@ export class StepFlow {
       })),
       ...(flow.exits ?? []).map((exit) => ({
         line: exit.line,
-        col: 0,
+        col: 1e9, // after the calls on its line
         context: exit.context ?? [],
         node: { type: "exit", exit } as FlowNode,
       })),
