@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
 import { fetchGraph } from "./api";
 import { ClassView } from "./components/ClassView";
+import { FlowView } from "./components/FlowView";
 import { GraphCanvas } from "./components/GraphCanvas";
 import { Header } from "./components/Header";
 import { IssuesView } from "./components/IssuesView";
 import { Overview } from "./components/Overview";
 import { SidePanel } from "./components/SidePanel";
 import { SourceDrawer } from "./components/SourceDrawer";
+import { extendTrail, samePlace, trailOf, type NavState, type Place } from "./navigation";
 import { urlHash, useStore } from "./store";
 import { decode } from "./urlState";
 
@@ -22,20 +24,39 @@ export function App() {
     );
   }, []);
 
-  // Mirror the view into the URL hash (without growing the history).
+  // Mirror the view into the URL hash. Moving to another tab or flow root adds a
+  // history entry (so Back works); anything else rewrites the current one.
   useEffect(() => {
     if (!index) return;
     let timer = 0;
+    let here: Place = placeOf(useStore.getState());
+    useStore.getState().setTrail(trailOf(history.state));
     const unsubscribe = useStore.subscribe((state) => {
       clearTimeout(timer);
       timer = window.setTimeout(() => {
         const hash = urlHash(state);
-        if (location.hash.slice(1) !== hash) history.replaceState(null, "", hash ? `#${hash}` : location.pathname);
+        const url = hash ? `#${hash}` : location.pathname;
+        const place = placeOf(state);
+        if (location.hash.slice(1) === hash) {
+          here = place;
+          return;
+        }
+        if (samePlace(place, here)) {
+          history.replaceState(history.state, "", url);
+        } else {
+          const trail = extendTrail(trailOf(history.state), here);
+          history.pushState({ trail } satisfies NavState, "", url);
+          state.setTrail(trail);
+        }
+        here = place;
       }, 200);
     });
     const onHashChange = () => {
       const state = useStore.getState();
+      state.setTrail(trailOf(history.state));
       if (location.hash.slice(1) !== urlHash(state)) state.applyUrl(decode(location.hash));
+      // Arrived here by Back (or an edited URL): filling in defaults must not add an entry.
+      here = placeOf(useStore.getState());
     };
     window.addEventListener("hashchange", onHashChange);
     return () => {
@@ -59,6 +80,7 @@ export function App() {
           </>
         )}
         {tab === "overview" && <Overview />}
+        {tab === "flow" && <FlowView />}
         {tab === "classes" && <ClassView />}
         {tab === "issues" && <IssuesView />}
         <SourceDrawer />
@@ -103,4 +125,8 @@ function Legend() {
       <div id="hint">더블클릭: 패키지 펼치기/접기 · 드래그: 이동 · 휠: 확대</div>
     </>
   );
+}
+
+function placeOf(state: { tab: Place["tab"]; flowRoot: string | null }): Place {
+  return { tab: state.tab, flowRoot: state.flowRoot };
 }

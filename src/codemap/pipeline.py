@@ -2,18 +2,33 @@
 
 from __future__ import annotations
 
+import tomllib
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 
+from codemap.analyze.calls import ENTRY_ORDER, CallGraph
 from codemap.analyze.churn import apply_churn, git_churn
 from codemap.analyze.cycles import find_cycles
+from codemap.analyze.framework import Framework
 from codemap.analyze.layers import find_layer_violations
 from codemap.analyze.metrics import apply_metrics
 from codemap.cache import ExtractCache
 from codemap.config import Config, load_config
 from codemap.extract import ModuleInfo, extract_all
-from codemap.model import SCHEMA_VERSION, Edge, Graph, Issue, Meta, Metrics, Node
+from codemap.model import (
+    SCHEMA_VERSION,
+    App,
+    Edge,
+    EntryPoint,
+    Graph,
+    Issue,
+    Launch,
+    Meta,
+    Metrics,
+    Node,
+    SharedState,
+)
 from codemap.resolve import Resolver
 from codemap.scan import ScanResult, SourceFile, scan_repo
 
@@ -42,7 +57,7 @@ def analyze_repo(
     builder = _Builder(scan, infos)
     builder.build()
     package_modules = {f"mod:{sf.module}" for sf in scan.files if sf.is_package}
-    edges = builder.edges()
+    edges, entrypoints = builder.edges(), builder.entrypoints
     issues = (
         builder.issues
         + find_cycles(edges, package_modules)
@@ -65,6 +80,10 @@ def analyze_repo(
         ),
         nodes=sorted(builder.nodes.values(), key=lambda n: n.id),
         edges=edges,
+        entrypoints=entrypoints,
+        apps=builder.apps,
+        launches=builder.launches,
+        state=builder.state,
         issues=sorted(issues, key=lambda i: (i.kind, i.nodes, i.line or 0, i.message)),
     )
 
@@ -89,6 +108,11 @@ class _Builder:
         self.issues: list[Issue] = []
         self._imports: dict[tuple[str, str], _EdgeAcc] = {}
         self._extends: set[tuple[str, str]] = set()
+        self._calls: list[Edge] = []
+        self.entrypoints: list[EntryPoint] = []
+        self.apps: list[App] = []
+        self.launches: list[Launch] = []
+        self.state: list[SharedState] = []
 
     def build(self) -> None:
         for name, directory in self.scan.packages.items():
@@ -106,6 +130,42 @@ class _Builder:
         for sf, info in self.modules.values():
             self._imports_of(sf, info)
             self._bases_of(sf, info)
+        self._call_graph()
+
+    def _call_graph(self) -> None:
+        graph = CallGraph(self.resolver)
+        result = graph.build()
+        for edge in result.edges:
+            self._ensure_library_node(edge.target)
+        self._calls = result.edges
+        for node_id, texts in result.unresolved.items():
+            self.nodes[node_id].unresolved_calls = texts
+        for node_id, flow in result.flows.items():
+            self.nodes[node_id].flow = flow
+        entrypoints = result.entrypoints + self._script_entrypoints()
+        framework = Framework(graph, self.scan)
+        framework.assign_apps(entrypoints)
+        self.apps = sorted(framework.apps.values(), key=lambda a: a.id)
+        self.launches = framework.launches()
+        self.state = framework.shared_state()
+        self.entrypoints = sorted(
+            entrypoints, key=lambda e: (ENTRY_ORDER.index(e.kind), e.label, e.target)
+        )
+
+    def _script_entrypoints(self) -> list[EntryPoint]:
+        """`[project.scripts]` entries that point at a function in the repository."""
+        pyproject = self.scan.root / "pyproject.toml"
+        try:
+            scripts = tomllib.loads(pyproject.read_text(encoding="utf-8"))["project"]["scripts"]
+        except (OSError, KeyError, TypeError, tomllib.TOMLDecodeError):
+            return []
+        entries = []
+        for name, spec in sorted(scripts.items()):
+            module, _, attr = str(spec).partition(":")
+            target = f"fn:{module}.{attr.split('.')[0]}"
+            if target in self.nodes:
+                entries.append(EntryPoint(kind="script", label=name, target=target))
+        return entries
 
     def edges(self) -> list[Edge]:
         edges = [
@@ -123,6 +183,7 @@ class _Builder:
             for (source, target), acc in self._imports.items()
         ]
         edges += [Edge(source=s, target=t, kind="extends") for s, t in self._extends]
+        edges += self._calls
         return sorted(edges, key=lambda e: (e.kind, e.source, e.target))
 
     def _module(self, sf: SourceFile, info: ModuleInfo) -> None:

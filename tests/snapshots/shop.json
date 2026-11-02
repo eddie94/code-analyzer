@@ -84,6 +84,21 @@
       ],
       "metrics": {
         "complexity": 1
+      },
+      "flow": {
+        "params": [
+          "message"
+        ],
+        "exits": [
+          {
+            "kind": "return",
+            "line": 5,
+            "value": "f'sent: {message} via {billing.__name__}'",
+            "inputs": [
+              "message"
+            ]
+          }
+        ]
       }
     },
     {
@@ -99,6 +114,28 @@
       ],
       "metrics": {
         "complexity": 1
+      },
+      "flow": {
+        "steps": [
+          {
+            "line": 5,
+            "col": 11,
+            "text": "Order([1, 2]).total",
+            "targets": [
+              "meth:shop.models.Order.total"
+            ],
+            "confidence": "inferred"
+          },
+          {
+            "line": 5,
+            "col": 11,
+            "text": "Order",
+            "targets": [
+              "cls:shop.models.Order"
+            ],
+            "confidence": "exact"
+          }
+        ]
       }
     },
     {
@@ -114,6 +151,32 @@
       ],
       "metrics": {
         "complexity": 5
+      },
+      "flow": {
+        "params": [
+          "invoice"
+        ],
+        "exits": [
+          {
+            "kind": "return",
+            "line": 28,
+            "value": "0",
+            "context": [
+              {
+                "kind": "if",
+                "text": "not self.items"
+              }
+            ]
+          },
+          {
+            "kind": "return",
+            "line": 29,
+            "value": "sum((i for i in self.items if i > 0)) or 0",
+            "inputs": [
+              "self.items"
+            ]
+          }
+        ]
       }
     },
     {
@@ -145,6 +208,53 @@
       "is_async": true,
       "metrics": {
         "complexity": 1
+      },
+      "flow": {
+        "steps": [
+          {
+            "line": 17,
+            "col": 15,
+            "text": "send",
+            "targets": [
+              "fn:shop.notify.send"
+            ],
+            "confidence": "exact",
+            "inputs": [
+              "self.order"
+            ]
+          },
+          {
+            "line": 17,
+            "col": 20,
+            "text": "json.dumps",
+            "library": "json.dumps",
+            "inputs": [
+              "self.order"
+            ],
+            "nested": true
+          },
+          {
+            "line": 17,
+            "col": 41,
+            "text": "self.order.total",
+            "targets": [
+              "meth:shop.models.Order.total"
+            ],
+            "confidence": "inferred",
+            "receiver": "self.order",
+            "nested": true
+          }
+        ],
+        "exits": [
+          {
+            "kind": "return",
+            "line": 17,
+            "value": "send(json.dumps({'total': self.order.total()}))",
+            "inputs": [
+              "self.order"
+            ]
+          }
+        ]
       }
     },
     {
@@ -448,6 +558,44 @@
     }
   ],
   "edges": [
+    {
+      "source": "fn:tests.models_check.check_total",
+      "target": "cls:shop.models.Order",
+      "kind": "calls",
+      "line": 5,
+      "confidence": "exact"
+    },
+    {
+      "source": "fn:tests.models_check.check_total",
+      "target": "meth:shop.models.Order.total",
+      "kind": "calls",
+      "line": 5,
+      "confidence": "inferred"
+    },
+    {
+      "source": "meth:shop.services.billing.Invoice.pay",
+      "target": "fn:shop.notify.send",
+      "kind": "calls",
+      "line": 17,
+      "confidence": "exact"
+    },
+    {
+      "source": "meth:shop.services.billing.Invoice.pay",
+      "target": "meth:shop.models.Order.total",
+      "kind": "calls",
+      "line": 17,
+      "confidence": "inferred"
+    },
+    {
+      "source": "meth:shop.services.billing.Invoice.pay",
+      "target": "stdlib:json",
+      "kind": "calls",
+      "names": [
+        "json.dumps"
+      ],
+      "line": 17,
+      "confidence": "exact"
+    },
     {
       "source": "cls:plugins.fancy.FancyOrder",
       "target": "cls:shop.models.Order",

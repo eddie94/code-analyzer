@@ -189,6 +189,79 @@ code-analyzer/
 | M2 | FastAPI 서버, React viewer 뼈대, Dependency 탭, 사이드 패널, 소스 미리보기 | `codemap serve`로 실제 리포 탐색 가능 |
 | M3 | Classes·Overview·Issues 탭, 메트릭 전체, 검색·필터, URL 상태 | 4개 탭 모두 동작 |
 | M4 | 레이어 규칙과 `check`, `export` 단일 HTML, 캐시, git 핫스팟 | CI에서 위반 시 실패 |
+| M5a | 진입점 수집, 호출 그래프, 흐름 탭 | LLM을 쓰는 FastAPI 서비스에서 라우트부터 LLM 호출 지점까지 끊기지 않고 이어짐 |
+| M5b | 부수효과·LLM 호출 인식, LLM 탭 | LLM 호출 지점이 모두 잡히고 모델·프롬프트가 표시됨 |
+| M5c | 조건·반복·병렬·백그라운드·단계 주석 표시, 데이터 흐름 화면 | 요청 처리 함수의 흐름이 단계 주석 순서대로 읽히고, 값이 어느 호출로 들어가 무엇이 되는지 보임 |
+| 이후 | 서비스 간 HTTP 호출 연결, 두 커밋 간 구조 비교 | |
 
-M1~M4 완료. 레이어 규칙은 모듈마다 처음 일치하는 레이어에 배정하고, TYPE_CHECKING import는 위반으로 보지 않는다.
-| v2 | 호출 그래프(best-effort), 두 커밋 간 구조 비교 | |
+M1~M4, M5a, M5c 완료. 레이어 규칙은 모듈마다 처음 일치하는 레이어에 배정하고, TYPE_CHECKING import는 위반으로 보지 않는다.
+
+## 10. M5: 실행 흐름 (설계안)
+
+목표: 코드를 실행하지 않고, "요청 하나가 들어오면 무엇이 어떤 순서로 일어나는가"를 보여준다. 분석 대상은 LLM 호출이 들어 있는 AI 서비스 엔진이다. codemap 자체는 LLM을 호출하지 않는다(요약 생성은 보류).
+
+### 10.1 다뤄야 할 코드 패턴
+일반적인 LLM 서비스 코드에서 볼 수 있는 구조들이다. 예시는 설명을 위해 지어낸 것이다.
+
+| 패턴 | 예 | 필요한 분석 |
+|---|---|---|
+| FastAPI 서비스 여러 개 | `api/app.py`(`POST /ask`), `worker/app.py` | 라우트 데코레이터로 진입점 수집 |
+| 모듈 전역에 나중에 대입되는 객체 | `engine = None` 후 시작 시 `Engine(...)` 대입 | 모듈 전역 변수의 타입을 모든 대입에서 추론 |
+| LLM 팩토리 | `make_llm(name)`가 이름에 따라 `ChatOpenAI`나 `ChatAnthropic`을 골라 반환 | "LLM을 만드는 함수" 인식, 반환값 추적 |
+| LangChain LCEL | `chain = prompt \| llm \| StrOutputParser()`, `llm.with_fallbacks([backup])`, `await chain.ainvoke(...)` | `\|` 연산자, `with_fallbacks` 등을 거쳐도 LLM 값으로 유지 |
+| 설정 클래스 기본값 + 환경 변수 | `model: str = os.environ.get("CHAT_MODEL", "gpt-4o-mini")` | 모델 이름을 "gpt-4o-mini (env CHAT_MODEL)"로 표시 |
+| 프롬프트 상수 | `PromptTemplate(template=ANSWER_PROMPT, ...)` | 어느 상수·파일이 어느 LLM 호출에 쓰이는지 연결 |
+| 규칙 우선 처리 | 규칙 함수가 답을 주면 LLM 없이 `return` | 호출 앞의 조기 반환과 조건 표시 |
+| 병렬·재시도·백그라운드 | `asyncio.gather(answer(), tag())`, `for attempt in range(retries)`, `asyncio.create_task` | 병렬 묶음, 반복, 백그라운드 표시 |
+| 단계 주석 | `# Step 2. Retrieve documents` | 흐름의 소제목으로 사용 |
+| 서비스 간 HTTP | 한 서비스가 다른 서비스를 `aiohttp`로 호출, URL은 설정에서 | (이후) URL 경로를 상대 서비스 라우트와 연결 |
+
+### 10.2 진입점
+- 웹 라우트: FastAPI/Flask/Starlette 데코레이터(`@app.post("/x")`, `@router.get`), `app.add_api_route`. 라벨은 `POST /ask`.
+- 시작·종료 훅: `@app.on_event("startup")`, `lifespan`.
+- 스크립트: `if __name__ == "__main__":` 블록, `[project.scripts]`.
+- CLI: typer/click 명령, argparse 하위 명령.
+- 워커: Celery 태스크 등은 이후.
+
+### 10.3 호출 그래프 (best-effort)
+- 해석하는 호출: import로 가져온 함수, `self.method()`(상속 포함), `Cls()` → `Cls.__init__`, `super().m()`.
+- 객체 타입 추론: `self.x = Cls(...)`, 타입 힌트(속성·매개변수·반환), 기본값 `config: X = X()`, 모듈 전역 변수의 모든 대입(`global` 포함), 타입 힌트가 있는 함수의 반환값.
+- 베이스 클래스 메서드 호출은 오버라이드한 하위 클래스를 후보로 둔다.
+- 해석 결과마다 확신도를 둔다: `exact`(직접 확인), `inferred`(타입 추론), `candidates`(후보 여러 개). 해석 못 한 호출은 버리지 않고 "알 수 없음"으로 남긴다.
+- 표준 라이브러리·외부 라이브러리 호출은 라이브러리 노드로 묶고, 부수효과 판정에만 쓴다.
+
+### 10.4 부수효과와 LLM 호출
+- 종류: `llm`, `http`, `db`(벡터 DB 포함), `cache`, `file`, `subprocess`, `env`.
+- LLM 값의 출처: LangChain 채팅 모델 클래스(`ChatOpenAI`, `ChatAnthropic`, `ChatVertexAI` 등), OpenAI·Anthropic·google-genai SDK 클라이언트, 그리고 이런 값을 반환하는 사용자 함수(팩토리). `|`, `with_fallbacks`, `with_retry`, `with_listeners`, `bind`, `with_structured_output`을 거쳐도 LLM 값으로 본다.
+- LLM 호출: LLM 값에 대한 `invoke`/`ainvoke`/`stream`/`astream`/`batch`/`abatch`, SDK의 `chat.completions.create`, `messages.create`, `generate_content`.
+- 호출 지점마다 뽑는 정보: 모델 이름 후보(리터럴, 설정 기본값과 환경 변수 이름), 폴백 모델, 프롬프트 출처(상수 이름·파일), 출력 파서, 반복문·병렬 안인지.
+- 사내 SDK나 HTTP로 부르는 모델 서버는 설정으로 추가한다:
+  ```toml
+  [tool.codemap.effects]
+  llm = ["mycorp_llm.Client.generate", "url:*/v1/chat/completions"]
+  db = ["myapp.storage.*"]
+  ```
+- 부수효과는 호출 그래프를 따라 위로 전파한다. 흐름 화면에서 "이 단계 아래 어딘가에서 LLM 2번, HTTP 1번"처럼 보인다.
+
+### 10.5 제어 흐름 표시
+호출 지점마다 다음을 기록한다.
+- 감싸는 조건문(`if` 조건식 원문과 분기), 그 앞의 조기 반환
+- 반복문(`for`/`while`, 재시도 패턴 `for attempt in range(...)`)
+- `try`/`except`(폴백 경로)
+- `await` 여부, 병렬 묶음(`asyncio.gather`, `TaskGroup`), 백그라운드(`create_task`, FastAPI `BackgroundTasks`)
+- 바로 앞의 단계 주석(`# Step N ...` 같은 배너 주석)
+
+### 10.6 데이터 모델 추가
+- edge kind `calls`: `line`, `awaited`, `conditions`(조건식 목록), `loop`, `parallel_group`, `background`, `confidence`, `candidates`
+- `Graph.entrypoints`: `{id, kind: route|startup|script|command, label, target}`
+- 함수 노드 `effects`: `{kind, detail, line}` 목록, LLM 호출은 `detail`에 모델·프롬프트·폴백
+- 함수 노드 `sections`: 단계 주석 `{line, title}` 목록
+
+### 10.7 화면
+- 흐름 탭: 진입점 목록 → 고르면 호출 트리를 단계별로 펼친다. 단계 주석을 소제목으로, 조건·반복·병렬·백그라운드를 배지로 표시하고, LLM 단계는 강조한다. 단계를 누르면 소스가 열린다. 깊이 제한과 "라이브러리 숨기기"가 있다.
+- 데이터 흐름: 함수 한 줄이 호출 하나다. 왼쪽에 읽는 변수와 메서드를 부르는 객체, 오른쪽에 결과를 받는 변수를 그리고, 조건에 쓰인 변수에서 반환·예외 지점으로 점선을 잇는다. 같은 값은 마우스를 올리면 모두 강조된다.
+- LLM 탭: LLM 호출 지점 전체. 모델, 폴백, 프롬프트, 이 지점에 도달하는 진입점.
+- 오른쪽 패널: 함수를 고르면 "이 함수에 도달하는 진입점"과 이 함수 아래에서 일어나는 부수효과 요약.
+
+### 10.8 범위 밖
+코드 실행·런타임 추적, LLM으로 설명 생성(보류), 프롬프트 내용 평가.

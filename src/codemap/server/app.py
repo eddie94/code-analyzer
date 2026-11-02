@@ -25,7 +25,7 @@ class Source(BaseModel):
 
 def create_app(root: Path, graph: Graph, static_dir: Path = STATIC_DIR) -> FastAPI:
     root = root.resolve()
-    body = dump_graph(graph)
+    body = dump_graph(graph, compact=True)
     # Only files that were analyzed can be read back, never arbitrary paths.
     readable = {n.path for n in graph.nodes if n.kind == "module" and n.path}
 

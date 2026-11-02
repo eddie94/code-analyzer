@@ -14,6 +14,10 @@ export interface GraphIndex {
   modules: Node[];
   imports: Edge[];
   extends: Edge[];
+  /** Call edges by caller, in source order. */
+  callsFrom: Map<string, Edge[]>;
+  /** Call edges by callee. */
+  callsTo: Map<string, Edge[]>;
   parseErrors: Set<string>;
   /** `source\u0000target` module pairs that break the configured layers. */
   layerViolations: Set<string>;
@@ -60,6 +64,9 @@ export function buildIndex(graph: Graph): GraphIndex {
   const packageAncestors = (id: string) => ancestors(id).filter((a) => nodes.get(a)?.kind === "package");
 
   const modules = graph.nodes.filter((n) => n.kind === "module");
+  const calls = graph.edges
+    .filter((e) => e.kind === "calls")
+    .sort((a, b) => (a.line ?? 0) - (b.line ?? 0) || a.target.localeCompare(b.target));
   const counts = new Map<string, number>();
   const testCounts = new Map<string, number>();
   const testModules = new Set(modules.filter((m) => m.qualname.split(".").some(isTestPart)).map((m) => m.id));
@@ -82,6 +89,8 @@ export function buildIndex(graph: Graph): GraphIndex {
     modules,
     imports: graph.edges.filter((e) => e.kind === "imports"),
     extends: graph.edges.filter((e) => e.kind === "extends"),
+    callsFrom: groupBy(calls, (e) => e.source),
+    callsTo: groupBy(calls, (e) => e.target),
     parseErrors: new Set(graph.issues.filter((i) => i.kind === "parse_error").flatMap((i) => i.nodes)),
     layerViolations: new Set(
       graph.issues.filter((i) => i.kind === "layer_violation").map((i) => `${i.nodes[0]}\u0000${i.nodes[1]}`),
@@ -102,4 +111,14 @@ export function buildIndex(graph: Graph): GraphIndex {
       return PALETTE[Math.max(0, index) % PALETTE.length];
     },
   };
+}
+
+function groupBy<T>(items: T[], key: (item: T) => string): Map<string, T[]> {
+  const map = new Map<string, T[]>();
+  for (const item of items) {
+    const list = map.get(key(item));
+    if (list) list.push(item);
+    else map.set(key(item), [item]);
+  }
+  return map;
 }

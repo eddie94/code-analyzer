@@ -15,7 +15,18 @@ import tempfile
 from dataclasses import asdict
 from pathlib import Path
 
-from codemap.extract import EXTRACT_VERSION, ModuleInfo, RawImport, Symbol
+from codemap.extract import (
+    EXTRACT_VERSION,
+    CallSite,
+    Ctx,
+    EntryDecorator,
+    Exit,
+    ModuleInfo,
+    RawImport,
+    Section,
+    Symbol,
+    Value,
+)
 
 CACHE_VERSION = f"{EXTRACT_VERSION}:py{sys.version_info.major}.{sys.version_info.minor}"
 
@@ -80,11 +91,46 @@ def info_to_json(info: ModuleInfo) -> dict:
 
 
 def info_from_json(data: dict) -> ModuleInfo:
-    imports = [
-        RawImport(**{**i, "names": None if i["names"] is None else [tuple(n) for n in i["names"]]})
-        for i in data["imports"]
-    ]
-    symbols = [Symbol(**{**s, "range": tuple(s["range"])}) for s in data["symbols"]]
+    imports = [_raw_import(i) for i in data["imports"]]
+    symbols = [_symbol(s) for s in data["symbols"]]
     return ModuleInfo(
-        **{**data, "defined": set(data["defined"]), "imports": imports, "symbols": symbols}
+        **{
+            **data,
+            "defined": set(data["defined"]),
+            "imports": imports,
+            "symbols": symbols,
+            "variables": _values_by_name(data["variables"]),
+        }
     )
+
+
+def _symbol(data: dict) -> Symbol:
+    return Symbol(
+        **{
+            **data,
+            "range": tuple(data["range"]),
+            "params": {name: Value(**v) for name, v in data["params"].items()},
+            "calls": [
+                CallSite(**{**c, "context": [Ctx(**x) for x in c["context"]]})
+                for c in data["calls"]
+            ],
+            "exits": [
+                Exit(**{**e, "context": [Ctx(**x) for x in e["context"]]}) for e in data["exits"]
+            ],
+            "sections": [Section(**x) for x in data["sections"]],
+            "locals": _values_by_name(data["locals"]),
+            "globals": _values_by_name(data["globals"]),
+            "attrs": _values_by_name(data["attrs"]),
+            "entries": [EntryDecorator(**e) for e in data["entries"]],
+            "imports": [_raw_import(i) for i in data["imports"]],
+        }
+    )
+
+
+def _raw_import(data: dict) -> RawImport:
+    names = data["names"]
+    return RawImport(**{**data, "names": None if names is None else [tuple(n) for n in names]})
+
+
+def _values_by_name(data: dict[str, list[dict]]) -> dict[str, list[Value]]:
+    return {name: [Value(**v) for v in values] for name, values in data.items()}

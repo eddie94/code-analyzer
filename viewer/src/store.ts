@@ -3,6 +3,7 @@ import { hasSourceApi } from "./api";
 import { buildIndex, type GraphIndex } from "./model/graphIndex";
 import { autoExpand } from "./model/view";
 import type { Graph } from "./types/graph";
+import type { Place } from "./navigation";
 import { DEFAULTS, encode, type Tab, type UrlState } from "./urlState";
 
 type Option = "showExternal" | "showWeak" | "showCycles" | "hideTests";
@@ -17,6 +18,8 @@ interface State {
   hideTests: boolean;
   /** Any node id, including classes and functions. */
   selected: string | null;
+  /** Function at the root of the flow tab. */
+  flowRoot: string | null;
   /** A cycle (module ids in order) to emphasize in the dependency graph. */
   path: string[] | null;
   sourceOpen: boolean;
@@ -26,11 +29,15 @@ interface State {
   fitRequest: number;
   /** Bumped to ask the canvas to center on the selection. */
   focusRequest: number;
+  /** Views visited before this one, oldest first (from the browser history). */
+  trail: Place[];
 
   load(graph: Graph, initial?: UrlState): void;
   /** Apply view state from the URL (on load, or when the hash is edited). */
   applyUrl(state: UrlState): void;
   setTab(tab: Tab): void;
+  /** Show the calls made from `id` in the flow tab. */
+  showFlow(id: string): void;
   toggle(packageId: string): void;
   select(id: string | null): void;
   /** Select a node and make it visible in the dependency graph. */
@@ -41,6 +48,7 @@ interface State {
   openSource(line?: number | null): void;
   closeSource(): void;
   reset(): void;
+  setTrail(trail: Place[]): void;
 }
 
 export const useStore = create<State>()((set, get) => ({
@@ -52,11 +60,13 @@ export const useStore = create<State>()((set, get) => ({
   showCycles: DEFAULTS.showCycles,
   hideTests: DEFAULTS.hideTests,
   selected: null,
+  flowRoot: null,
   path: null,
   sourceOpen: false,
   sourceLine: null,
   fitRequest: 0,
   focusRequest: 0,
+  trail: [],
 
   load(graph, initial = DEFAULTS) {
     set({ index: buildIndex(graph) });
@@ -71,11 +81,22 @@ export const useStore = create<State>()((set, get) => ({
       ? new Set(state.expanded.filter((id) => index.nodes.get(id)?.kind === "package"))
       : autoExpand(index, { showExternal, showWeak, hideTests });
     const selected = state.selected && index.nodes.has(state.selected) ? state.selected : null;
-    set({ ...state, expanded, selected, path: null, sourceOpen: false, fitRequest: fitRequest + 1 });
+    const knownRoot = (id: string) => index.nodes.has(id) || (index.graph.apps ?? []).some((a) => a.id === id);
+    const flowRoot = state.flowRoot && knownRoot(state.flowRoot) ? state.flowRoot : null;
+    set({ ...state, expanded, selected, flowRoot, path: null, sourceOpen: false, fitRequest: fitRequest + 1 });
   },
 
   setTab(tab) {
     set({ tab, sourceOpen: false });
+  },
+
+  setTrail(trail) {
+    set({ trail });
+  },
+
+  showFlow(id) {
+    const { index } = get();
+    set({ tab: "flow", flowRoot: id, selected: index?.nodes.has(id) ? id : null, sourceOpen: false });
   },
 
   toggle(packageId) {
@@ -153,6 +174,7 @@ export function urlHash(state: State): string {
   return encode({
     tab: state.tab,
     selected: state.selected,
+    flowRoot: state.flowRoot,
     expanded: [...state.expanded],
     showExternal: state.showExternal,
     showWeak: state.showWeak,

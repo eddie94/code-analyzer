@@ -1,0 +1,6 @@
+[project]
+name = "catalog-fixture"
+version = "0"
+
+[project.scripts]
+catalog-warm = "catalog.web:warm_up"

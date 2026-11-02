@@ -28,7 +28,7 @@ def export_html(graph: Graph, static_dir: Path = STATIC_DIR) -> str:
     html = index.read_text(encoding="utf-8")
 
     # Only `<` can end a <script> element early; inside JSON it only occurs in strings.
-    data = dump_graph(graph).replace("<", "\\u003c")
+    data = dump_graph(graph, compact=True).replace("<", "\\u003c")
     data_tag = f'<script id="codemap-data" type="application/json">{data}</script>'
 
     def inline_script(match: re.Match[str]) -> str:

@@ -1,5 +1,61 @@
 {
   "$defs": {
+    "App": {
+      "additionalProperties": false,
+      "description": "A web application or router object, e.g. `app = FastAPI()`.",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "fastapi",
+            "starlette",
+            "flask",
+            "router",
+            "blueprint"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "module": {
+          "title": "Module",
+          "type": "string"
+        },
+        "line": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Line"
+        },
+        "includes": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Includes",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "name",
+        "module"
+      ],
+      "title": "App",
+      "type": "object"
+    },
     "Edge": {
       "additionalProperties": false,
       "properties": {
@@ -14,7 +70,8 @@
         "kind": {
           "enum": [
             "imports",
-            "extends"
+            "extends",
+            "calls"
           ],
           "title": "Kind",
           "type": "string"
@@ -59,6 +116,28 @@
           },
           "title": "Via",
           "type": "array"
+        },
+        "awaited": {
+          "default": false,
+          "title": "Awaited",
+          "type": "boolean"
+        },
+        "confidence": {
+          "anyOf": [
+            {
+              "enum": [
+                "exact",
+                "inferred",
+                "candidates"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Confidence"
         }
       },
       "required": [
@@ -67,6 +146,294 @@
         "kind"
       ],
       "title": "Edge",
+      "type": "object"
+    },
+    "EntryPoint": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": [
+            "route",
+            "startup",
+            "main",
+            "command",
+            "script",
+            "task"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "target": {
+          "title": "Target",
+          "type": "string"
+        },
+        "app": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "App"
+        }
+      },
+      "required": [
+        "kind",
+        "label",
+        "target"
+      ],
+      "title": "EntryPoint",
+      "type": "object"
+    },
+    "Flow": {
+      "additionalProperties": false,
+      "properties": {
+        "params": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Params",
+          "type": "array"
+        },
+        "steps": {
+          "items": {
+            "$ref": "#/$defs/FlowStep"
+          },
+          "title": "Steps",
+          "type": "array"
+        },
+        "exits": {
+          "items": {
+            "$ref": "#/$defs/FlowExit"
+          },
+          "title": "Exits",
+          "type": "array"
+        },
+        "sections": {
+          "items": {
+            "$ref": "#/$defs/FlowSection"
+          },
+          "title": "Sections",
+          "type": "array"
+        }
+      },
+      "title": "Flow",
+      "type": "object"
+    },
+    "FlowContext": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": [
+            "if",
+            "else",
+            "loop",
+            "except",
+            "with",
+            "case"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "text"
+      ],
+      "title": "FlowContext",
+      "type": "object"
+    },
+    "FlowExit": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": [
+            "return",
+            "raise"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "line": {
+          "title": "Line",
+          "type": "integer"
+        },
+        "value": {
+          "default": "",
+          "title": "Value",
+          "type": "string"
+        },
+        "context": {
+          "items": {
+            "$ref": "#/$defs/FlowContext"
+          },
+          "title": "Context",
+          "type": "array"
+        },
+        "inputs": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Inputs",
+          "type": "array"
+        }
+      },
+      "required": [
+        "kind",
+        "line"
+      ],
+      "title": "FlowExit",
+      "type": "object"
+    },
+    "FlowSection": {
+      "additionalProperties": false,
+      "properties": {
+        "line": {
+          "title": "Line",
+          "type": "integer"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        }
+      },
+      "required": [
+        "line",
+        "title"
+      ],
+      "title": "FlowSection",
+      "type": "object"
+    },
+    "FlowStep": {
+      "additionalProperties": false,
+      "description": "One call in a function body, in source order, with what surrounds it.",
+      "properties": {
+        "line": {
+          "title": "Line",
+          "type": "integer"
+        },
+        "col": {
+          "default": 0,
+          "title": "Col",
+          "type": "integer"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "targets": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Targets",
+          "type": "array"
+        },
+        "library": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Library"
+        },
+        "confidence": {
+          "anyOf": [
+            {
+              "enum": [
+                "exact",
+                "inferred",
+                "candidates"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Confidence"
+        },
+        "awaited": {
+          "default": false,
+          "title": "Awaited",
+          "type": "boolean"
+        },
+        "context": {
+          "items": {
+            "$ref": "#/$defs/FlowContext"
+          },
+          "title": "Context",
+          "type": "array"
+        },
+        "group": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Group"
+        },
+        "background": {
+          "default": false,
+          "title": "Background",
+          "type": "boolean"
+        },
+        "assigns": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Assigns",
+          "type": "array"
+        },
+        "inputs": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Inputs",
+          "type": "array"
+        },
+        "receiver": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Receiver"
+        },
+        "nested": {
+          "default": false,
+          "title": "Nested",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "line",
+        "text"
+      ],
+      "title": "FlowStep",
       "type": "object"
     },
     "Issue": {
@@ -156,6 +523,78 @@
         "message"
       ],
       "title": "Issue",
+      "type": "object"
+    },
+    "Launch": {
+      "additionalProperties": false,
+      "description": "A way the code gets started: a server call in code or a command in a script.",
+      "properties": {
+        "kind": {
+          "enum": [
+            "code",
+            "command"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "target": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Target"
+        },
+        "source": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source"
+        },
+        "file": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "File"
+        },
+        "line": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Line"
+        }
+      },
+      "required": [
+        "kind",
+        "label"
+      ],
+      "title": "Launch",
       "type": "object"
     },
     "Meta": {
@@ -451,6 +890,24 @@
             }
           ],
           "default": null
+        },
+        "unresolved_calls": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Unresolved Calls",
+          "type": "array"
+        },
+        "flow": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Flow"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         }
       },
       "required": [
@@ -460,6 +917,44 @@
         "qualname"
       ],
       "title": "Node",
+      "type": "object"
+    },
+    "SharedState": {
+      "additionalProperties": false,
+      "description": "A module global set in one function and read in others (e.g. built at startup).",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "writers": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Writers",
+          "type": "array"
+        },
+        "readers": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Readers",
+          "type": "array"
+        },
+        "types": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Types",
+          "type": "array"
+        }
+      },
+      "required": [
+        "name",
+        "writers",
+        "readers"
+      ],
+      "title": "SharedState",
       "type": "object"
     }
   },
@@ -487,6 +982,34 @@
         "$ref": "#/$defs/Issue"
       },
       "title": "Issues",
+      "type": "array"
+    },
+    "entrypoints": {
+      "items": {
+        "$ref": "#/$defs/EntryPoint"
+      },
+      "title": "Entrypoints",
+      "type": "array"
+    },
+    "apps": {
+      "items": {
+        "$ref": "#/$defs/App"
+      },
+      "title": "Apps",
+      "type": "array"
+    },
+    "launches": {
+      "items": {
+        "$ref": "#/$defs/Launch"
+      },
+      "title": "Launches",
+      "type": "array"
+    },
+    "state": {
+      "items": {
+        "$ref": "#/$defs/SharedState"
+      },
+      "title": "State",
       "type": "array"
     }
   },

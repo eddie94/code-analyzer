@@ -2,8 +2,14 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useStore } from "../store";
 import type { Tab } from "../urlState";
 
-const SEARCHABLE = new Set(["module", "package", "class", "function"]);
-const TAB_LABELS: Record<Tab, string> = { overview: "개요", deps: "의존성", classes: "클래스", issues: "이슈" };
+const SEARCHABLE = new Set(["module", "package", "class", "function", "method"]);
+export const TAB_LABELS: Record<Tab, string> = {
+  overview: "개요",
+  flow: "흐름",
+  deps: "의존성",
+  classes: "클래스",
+  issues: "이슈",
+};
 
 export function Header() {
   const index = useStore((s) => s.index)!;
@@ -11,6 +17,7 @@ export function Header() {
   const setTab = useStore((s) => s.setTab);
   const reveal = useStore((s) => s.reveal);
   const select = useStore((s) => s.select);
+  const showFlow = useStore((s) => s.showFlow);
   const issueCount = index.graph.issues.length;
   const [query, setQuery] = useState("");
 
@@ -27,8 +34,11 @@ export function Header() {
   const go = (value: string) => {
     const id = byName.get(value.trim());
     if (!id) return;
-    // Classes stay in the class tab; everything else is shown in the dependency graph.
-    if (tab === "classes" && index.nodes.get(id)?.kind === "class") select(id);
+    // Stay in the class and flow tabs when the result fits there; otherwise show it in
+    // the dependency graph.
+    const kind = index.nodes.get(id)?.kind;
+    if (tab === "classes" && kind === "class") select(id);
+    else if (kind === "function" || kind === "method") showFlow(id);
     else reveal(id);
     setQuery("");
   };

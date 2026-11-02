@@ -5,6 +5,10 @@ export interface Graph {
   nodes: Node[];
   edges: Edge[];
   issues: Issue[];
+  entrypoints?: EntryPoint[];
+  apps?: App[];
+  launches?: Launch[];
+  state?: SharedState[];
 }
 export interface Meta {
   schema_version: number;
@@ -27,6 +31,8 @@ export interface Node {
   is_async?: boolean;
   layer?: string | null;
   metrics?: Metrics | null;
+  unresolved_calls?: string[];
+  flow?: Flow | null;
 }
 export interface Metrics {
   loc?: number | null;
@@ -39,16 +45,58 @@ export interface Metrics {
   churn?: number | null;
   hotspot?: number | null;
 }
+export interface Flow {
+  params?: string[];
+  steps?: FlowStep[];
+  exits?: FlowExit[];
+  sections?: FlowSection[];
+}
+/**
+ * One call in a function body, in source order, with what surrounds it.
+ */
+export interface FlowStep {
+  line: number;
+  col?: number;
+  text: string;
+  targets?: string[];
+  library?: string | null;
+  confidence?: ("exact" | "inferred" | "candidates") | null;
+  awaited?: boolean;
+  context?: FlowContext[];
+  group?: number | null;
+  background?: boolean;
+  assigns?: string[];
+  inputs?: string[];
+  receiver?: string | null;
+  nested?: boolean;
+}
+export interface FlowContext {
+  kind: "if" | "else" | "loop" | "except" | "with" | "case";
+  text: string;
+}
+export interface FlowExit {
+  kind: "return" | "raise";
+  line: number;
+  value?: string;
+  context?: FlowContext[];
+  inputs?: string[];
+}
+export interface FlowSection {
+  line: number;
+  title: string;
+}
 export interface Edge {
   source: string;
   target: string;
-  kind: "imports" | "extends";
+  kind: "imports" | "extends" | "calls";
   names?: string[];
   line?: number | null;
   type_only?: boolean;
   lazy?: boolean;
   conditional?: boolean;
   via?: string[];
+  awaited?: boolean;
+  confidence?: ("exact" | "inferred" | "candidates") | null;
 }
 export interface Issue {
   kind: "cycle" | "unresolved_import" | "parse_error" | "layer_violation";
@@ -59,4 +107,41 @@ export interface Issue {
   runtime?: boolean | null;
   through_init?: boolean | null;
   examples?: string[][];
+}
+export interface EntryPoint {
+  kind: "route" | "startup" | "main" | "command" | "script" | "task";
+  label: string;
+  target: string;
+  app?: string | null;
+}
+/**
+ * A web application or router object, e.g. `app = FastAPI()`.
+ */
+export interface App {
+  id: string;
+  kind: "fastapi" | "starlette" | "flask" | "router" | "blueprint";
+  name: string;
+  module: string;
+  line?: number | null;
+  includes?: string[];
+}
+/**
+ * A way the code gets started: a server call in code or a command in a script.
+ */
+export interface Launch {
+  kind: "code" | "command";
+  label: string;
+  target?: string | null;
+  source?: string | null;
+  file?: string | null;
+  line?: number | null;
+}
+/**
+ * A module global set in one function and read in others (e.g. built at startup).
+ */
+export interface SharedState {
+  name: string;
+  writers: string[];
+  readers: string[];
+  types?: string[];
 }

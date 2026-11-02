@@ -13,7 +13,7 @@ writeFileSync("src/types/graph.schema.json", JSON.stringify(schema, null, 2) + "
 function normalize(node, keepTitle) {
   if (Array.isArray(node)) return node.forEach(n => normalize(n, false));
   if (!node || typeof node !== "object") return;
-  if (!keepTitle) delete node.title;
+  if (!keepTitle && typeof node.title === "string") delete node.title;
   if (node.prefixItems) {
     node.items = node.prefixItems;
     delete node.prefixItems;

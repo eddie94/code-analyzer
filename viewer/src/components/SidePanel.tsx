@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { hasSourceApi } from "../api";
+import { reachingEntrypoints, shortName } from "../model/flow";
 import { isLibrary, type GraphIndex } from "../model/graphIndex";
 import { useStore } from "../store";
 import type { Edge, Issue, Node } from "../types/graph";
@@ -88,7 +89,7 @@ function Details({ index, node }: { index: GraphIndex; node: Node }) {
       </div>
       {node.kind === "package" || node.kind === "module" ? <ContainerDetails index={index} node={node} /> : null}
       {node.kind === "class" ? <ClassDetails index={index} node={node} /> : null}
-      {node.kind === "function" || node.kind === "method" ? <FunctionDetails node={node} /> : null}
+      {node.kind === "function" || node.kind === "method" ? <FunctionDetails index={index} node={node} /> : null}
       {isLibrary(node) ? <Dependencies title="이 라이브러리를 쓰는 곳" entries={incoming(index, node.id)} index={index} /> : null}
     </>
   );
@@ -150,13 +151,77 @@ function ClassDetails({ index, node }: { index: GraphIndex; node: Node }) {
   );
 }
 
-function FunctionDetails({ node }: { node: Node }) {
+function FunctionDetails({ index, node }: { index: GraphIndex; node: Node }) {
+  const { showFlow, select } = useStore.getState();
   const lines = node.range ? node.range[1] - node.range[0] + 1 : null;
+  const callees = (index.callsFrom.get(node.id) ?? []).filter((e) => !isLibrary(index.nodes.get(e.target)!));
+  const libraries = [
+    ...new Set(
+      (index.callsFrom.get(node.id) ?? [])
+        .filter((e) => isLibrary(index.nodes.get(e.target)!))
+        .flatMap((e) => e.names ?? []),
+    ),
+  ];
+  const callers = index.callsTo.get(node.id) ?? [];
+  const entries = reachingEntrypoints(index, node.id);
   return (
-    <div className="stats">
-      <Stat value={node.metrics?.complexity ?? "–"} name="순환 복잡도" />
-      <Stat value={lines ?? "–"} name="줄 수" />
-    </div>
+    <>
+      <div className="stats">
+        <Stat value={node.metrics?.complexity ?? "–"} name="순환 복잡도" />
+        <Stat value={lines ?? "–"} name="줄 수" />
+        <Stat value={callers.length} name="이 함수를 부르는 곳" />
+        <Stat value={callees.length} name="호출하는 함수" />
+      </div>
+      <div className="actions">
+        <button onClick={() => showFlow(node.id)}>흐름에서 보기</button>
+      </div>
+      {entries.length > 0 && (
+        <>
+          <h3>도달하는 진입점 ({entries.length})</h3>
+          <ul className="list">
+            {entries.map((e) => (
+              <li key={`${e.kind}:${e.label}`} onClick={() => showFlow(e.target)}>
+                <span className="name">{e.label}</span>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+      <CallList title="호출하는 함수" ids={callees.map((e) => e.target)} index={index} onPick={select} />
+      <CallList title="이 함수를 부르는 곳" ids={callers.map((e) => e.source)} index={index} onPick={select} />
+      {libraries.length > 0 && (
+        <>
+          <h3>라이브러리 호출 ({libraries.length})</h3>
+          <p className="mono small muted">{libraries.join(", ")}</p>
+        </>
+      )}
+      {(node.unresolved_calls?.length ?? 0) > 0 && (
+        <>
+          <h3>따라가지 못한 호출 ({node.unresolved_calls!.length})</h3>
+          <p className="mono small muted">{node.unresolved_calls!.join(", ")}</p>
+        </>
+      )}
+    </>
+  );
+}
+
+function CallList(props: { title: string; ids: string[]; index: GraphIndex; onPick(id: string): void }) {
+  const ids = [...new Set(props.ids)];
+  if (!ids.length) return null;
+  return (
+    <>
+      <h3>
+        {props.title} ({ids.length})
+      </h3>
+      <ul className="list">
+        {ids.slice(0, LIST_LIMIT).map((id) => (
+          <li key={id} onClick={() => props.onPick(id)}>
+            <span className="name">{shortName(props.index, id)}</span>
+            <span className="meta">{props.index.nodes.get(props.index.moduleOf(id) ?? "")?.qualname}</span>
+          </li>
+        ))}
+      </ul>
+    </>
   );
 }
 

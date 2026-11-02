@@ -11,6 +11,7 @@ describe("urlState", () => {
     const state = {
       tab: "classes" as const,
       selected: "cls:shop.models.Order",
+      flowRoot: "fn:app.chat",
       expanded: ["pkg:shop", "pkg:plugins"],
       showExternal: true,
       showWeak: false,
@@ -18,7 +19,9 @@ describe("urlState", () => {
       hideTests: true,
     };
     const hash = encode(state);
-    expect(hash).toBe("tab=classes&sel=cls:shop.models.Order&exp=pkg:plugins,pkg:shop&ext=1&weak=0&notests=1");
+    expect(hash).toBe(
+      "tab=classes&sel=cls:shop.models.Order&flow=fn:app.chat&exp=pkg:plugins,pkg:shop&ext=1&weak=0&notests=1",
+    );
     expect(decode(`#${hash}`)).toEqual({ ...state, expanded: ["pkg:plugins", "pkg:shop"] });
   });
 

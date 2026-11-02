@@ -1,11 +1,13 @@
 /** View state kept in the URL hash, so a view can be reloaded or shared as a link. */
 
-export const TABS = ["overview", "deps", "classes", "issues"] as const;
+export const TABS = ["overview", "flow", "deps", "classes", "issues"] as const;
 export type Tab = (typeof TABS)[number];
 
 export interface UrlState {
   tab: Tab;
   selected: string | null;
+  /** Function at the root of the flow tab. */
+  flowRoot: string | null;
   /** Null means "not in the URL": choose a default expansion. */
   expanded: string[] | null;
   showExternal: boolean;
@@ -17,6 +19,7 @@ export interface UrlState {
 export const DEFAULTS: UrlState = {
   tab: "deps",
   selected: null,
+  flowRoot: null,
   expanded: null,
   showExternal: false,
   showWeak: true,
@@ -35,6 +38,7 @@ export function encode(state: UrlState): string {
   const params = new URLSearchParams();
   if (state.tab !== DEFAULTS.tab) params.set("tab", state.tab);
   if (state.selected) params.set("sel", state.selected);
+  if (state.flowRoot) params.set("flow", state.flowRoot);
   if (state.expanded) params.set("exp", [...state.expanded].sort().join(","));
   for (const [key, name] of FLAGS) {
     if (state[key] !== DEFAULTS[key]) params.set(name, state[key] ? "1" : "0");
@@ -51,6 +55,7 @@ export function decode(hash: string): UrlState {
     ...DEFAULTS,
     tab: TABS.includes(tab as Tab) ? (tab as Tab) : DEFAULTS.tab,
     selected: params.get("sel") || null,
+    flowRoot: params.get("flow") || null,
     expanded: exp === null ? null : exp.split(",").filter(Boolean),
   };
   for (const [key, name] of FLAGS) {

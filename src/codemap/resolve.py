@@ -2,18 +2,28 @@
 
 from __future__ import annotations
 
+import builtins
 import sys
 from dataclasses import dataclass, field
+from typing import Literal
 
 from codemap.extract import ModuleInfo, RawImport
 from codemap.scan import SourceFile
 
 _MAX_HOPS = 20
+_BUILTINS = set(dir(builtins))
 
 # A module-level name bound by an import:
 #   ("module", "a.b", None)  from `import a.b as x` (or `import a` -> ("module", "a", None))
 #   ("from", "a.b", "name")  from `from a.b import name`
 Binding = tuple[str, str, str | None]
+
+
+@dataclass
+class Ref:
+    kind: Literal["module", "class", "function", "var", "lib", "builtin"]
+    name: str  # qualified name; for "lib" the dotted library path, e.g. "aiohttp.ClientSession"
+    rest: list[str]  # attribute parts not resolved further
 
 
 @dataclass
@@ -35,6 +45,12 @@ class Resolver:
             for name, (_, info) in modules.items()
             for sym in info.symbols
             if sym.kind == "class"
+        }
+        self.functions = {
+            f"{name}.{sym.qualname}"
+            for name, (_, info) in modules.items()
+            for sym in info.symbols
+            if sym.kind == "function"
         }
         self._bindings: dict[str, dict[str, Binding]] = {}
 
@@ -145,15 +161,62 @@ class Resolver:
             return self.resolve_class(sub, rest, hops + 1)
         return self.resolve_class(target, [target_name, *rest], hops + 1)
 
+    def resolve_ref(self, module: str, parts: list[str], hops: int = 0) -> Ref | None:
+        """What a dotted name used in `module` refers to.
+
+        Returns the deepest resolved definition and the attribute parts left over:
+        a module, class or function in the repository, a module-level variable, a
+        library name (e.g. "requests.post"), or a builtin.
+        """
+        if hops > _MAX_HOPS or not parts or module not in self.modules:
+            return None
+        head, rest = parts[0], parts[1:]
+        qualname = f"{module}.{head}"
+        if head in self.modules[module][1].defined:
+            if qualname in self.classes:
+                return Ref("class", qualname, rest)
+            if qualname in self.functions:
+                return Ref("function", qualname, rest)
+            return Ref("var", qualname, rest)
+        if hops and qualname in self.modules:
+            # Attribute access on a module object reaching a submodule.
+            return self._into_module(qualname, rest, hops)
+        binding = self.bindings(module).get(head)
+        if binding is None:
+            if not hops and head in _BUILTINS:
+                return Ref("builtin", head, rest)
+            return None
+        return self.resolve_binding(binding, rest, hops)
+
+    def resolve_binding(self, binding: Binding, rest: list[str], hops: int = 0) -> Ref | None:
+        """Follow an import binding, then the attribute parts after it."""
+        kind, target, target_name = binding
+        if kind == "module":
+            if target in self.modules:
+                return self._into_module(target, rest, hops)
+            return Ref("lib", target, rest)
+        sub = f"{target}.{target_name}"
+        if sub in self.modules:
+            return self._into_module(sub, rest, hops)
+        if target in self.modules:
+            return self.resolve_ref(target, [target_name, *rest], hops + 1)
+        return Ref("lib", sub, rest)
+
+    def _into_module(self, module: str, rest: list[str], hops: int) -> Ref | None:
+        return self.resolve_ref(module, rest, hops + 1) if rest else Ref("module", module, [])
+
     def bindings(self, module: str) -> dict[str, Binding]:
         cached = self._bindings.get(module)
-        if cached is not None:
-            return cached
-        sf, info = self.modules[module]
+        if cached is None:
+            sf, info = self.modules[module]
+            imports = [i for i in info.imports if i.module_level and not i.type_only]
+            cached = self._bindings[module] = self.bind(sf, imports)
+        return cached
+
+    def bind(self, sf: SourceFile, imports: list[RawImport]) -> dict[str, Binding]:
+        """Names bound by `imports` written in `sf`."""
         result: dict[str, Binding] = {}
-        for imp in info.imports:
-            if not imp.module_level or imp.type_only:
-                continue
+        for imp in imports:
             if imp.names is None:
                 assert imp.module is not None
                 if imp.alias:
@@ -168,5 +231,4 @@ class Resolver:
             for name, asname in imp.names:
                 if name != "*":
                     result[asname or name] = ("from", base, name)
-        self._bindings[module] = result
         return result
