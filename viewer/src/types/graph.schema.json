@@ -76,7 +76,8 @@
           "enum": [
             "cycle",
             "unresolved_import",
-            "parse_error"
+            "parse_error",
+            "layer_violation"
           ],
           "title": "Kind",
           "type": "string"
@@ -174,6 +175,25 @@
           },
           "title": "Source Roots",
           "type": "array"
+        },
+        "layers": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Layers",
+          "type": "array"
+        },
+        "churn_days": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Churn Days"
         },
         "generated_at": {
           "anyOf": [
@@ -282,6 +302,30 @@
           ],
           "default": null,
           "title": "Max Complexity"
+        },
+        "churn": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Churn"
+        },
+        "hotspot": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Hotspot"
         }
       },
       "title": "Metrics",
@@ -384,6 +428,18 @@
           "default": false,
           "title": "Is Async",
           "type": "boolean"
+        },
+        "layer": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Layer"
         },
         "metrics": {
           "anyOf": [

@@ -4,8 +4,11 @@ from __future__ import annotations
 
 import tomllib
 from pathlib import Path
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
+
+CheckKind = Literal["layer_violation", "cycle", "parse_error", "unresolved_import"]
 
 
 class Layer(BaseModel):
@@ -25,6 +28,10 @@ class Config(BaseModel):
     exclude: list[str] = Field(default_factory=list)
     hide_external: bool = True
     layers: list[Layer] = Field(default_factory=list)
+    # Issue kinds that make `codemap check` fail. "cycle" means direct import-time cycles.
+    fail_on: list[CheckKind] = Field(default_factory=lambda: ["layer_violation", "cycle"])
+    # Look back this many days of git history for churn; 0 disables it.
+    churn_days: int = 90
 
 
 def load_config(root: Path) -> Config:

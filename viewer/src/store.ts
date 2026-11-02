@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { hasSourceApi } from "./api";
 import { buildIndex, type GraphIndex } from "./model/graphIndex";
 import { autoExpand } from "./model/view";
 import type { Graph } from "./types/graph";
@@ -127,7 +128,7 @@ export const useStore = create<State>()((set, get) => ({
   },
 
   openSource(line = null) {
-    set({ sourceOpen: true, sourceLine: line });
+    if (hasSourceApi) set({ sourceOpen: true, sourceLine: line });
   },
 
   closeSource() {

@@ -13,11 +13,16 @@ import warnings
 from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass, field, replace
 from pathlib import Path
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 from codemap.scan import SourceFile
 
+if TYPE_CHECKING:
+    from codemap.cache import ExtractCache
+
 PARALLEL_THRESHOLD = 64
+# Bump when extraction output changes so cached results are discarded.
+EXTRACT_VERSION = 1
 
 _BRANCHES = (
     ast.If,
@@ -85,8 +90,37 @@ class _Ctx:
     conditional: bool = False
 
 
-def extract_all(root: Path, files: list[SourceFile], jobs: int | None = None) -> list[ModuleInfo]:
-    paths = [root / f.path for f in files]
+def extract_all(
+    root: Path,
+    files: list[SourceFile],
+    jobs: int | None = None,
+    cache: ExtractCache | None = None,
+) -> list[ModuleInfo]:
+    if cache is None:
+        return _parse_all([root / f.path for f in files], jobs)
+
+    results: list[ModuleInfo | None] = [None] * len(files)
+    misses: list[tuple[int, str | None]] = []
+    for i, f in enumerate(files):
+        try:
+            digest = cache.digest((root / f.path).read_bytes())
+        except OSError:
+            misses.append((i, None))
+            continue
+        results[i] = cache.get(f.path, digest)
+        if results[i] is None:
+            misses.append((i, digest))
+
+    parsed = _parse_all([root / files[i].path for i, _ in misses], jobs)
+    for (i, digest), info in zip(misses, parsed, strict=True):
+        results[i] = info
+        if digest is not None:
+            cache.put(files[i].path, digest, info)
+    cache.save()
+    return results  # type: ignore[return-value]
+
+
+def _parse_all(paths: list[Path], jobs: int | None) -> list[ModuleInfo]:
     if jobs == 1 or len(paths) < PARALLEL_THRESHOLD:
         return [parse_file(p) for p in paths]
     with ProcessPoolExecutor(max_workers=jobs) as pool:

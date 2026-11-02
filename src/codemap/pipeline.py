@@ -6,8 +6,11 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 
+from codemap.analyze.churn import apply_churn, git_churn
 from codemap.analyze.cycles import find_cycles
+from codemap.analyze.layers import find_layer_violations
 from codemap.analyze.metrics import apply_metrics
+from codemap.cache import ExtractCache
 from codemap.config import Config, load_config
 from codemap.extract import ModuleInfo, extract_all
 from codemap.model import SCHEMA_VERSION, Edge, Graph, Issue, Meta, Metrics, Node
@@ -18,18 +21,37 @@ _SYMBOL_PREFIX = {"class": "cls", "function": "fn", "method": "meth"}
 
 
 def analyze_repo(
-    repo: Path, config: Config | None = None, jobs: int | None = None, timestamp: bool = True
+    repo: Path,
+    config: Config | None = None,
+    jobs: int | None = None,
+    timestamp: bool = True,
+    cache: bool = False,
+    history: bool = False,
 ) -> Graph:
+    """Analyze `repo`.
+
+    With `cache`, unchanged files reuse results from the last run. With
+    `history`, churn and hotspot metrics come from the last `config.churn_days`
+    days of git history.
+    """
     repo = repo.resolve()
     config = config or load_config(repo)
     scan = scan_repo(repo, config)
-    infos = extract_all(repo, scan.files, jobs)
+    infos = extract_all(repo, scan.files, jobs, ExtractCache(repo) if cache else None)
 
     builder = _Builder(scan, infos)
     builder.build()
     package_modules = {f"mod:{sf.module}" for sf in scan.files if sf.is_package}
-    issues = builder.issues + find_cycles(builder.edges(), package_modules)
-    apply_metrics(builder.nodes, builder.edges())
+    edges = builder.edges()
+    issues = (
+        builder.issues
+        + find_cycles(edges, package_modules)
+        + find_layer_violations(builder.nodes, edges, config.layers)
+    )
+    apply_metrics(builder.nodes, edges)
+    churn = git_churn(repo, config.churn_days) if history and config.churn_days > 0 else None
+    if churn is not None:
+        apply_churn(builder.nodes, churn)
 
     generated_at = datetime.now(UTC).isoformat(timespec="seconds") if timestamp else None
     return Graph(
@@ -37,10 +59,12 @@ def analyze_repo(
             schema_version=SCHEMA_VERSION,
             root=str(repo),
             source_roots=scan.source_roots,
+            layers=[layer.name for layer in config.layers],
+            churn_days=config.churn_days if churn is not None else None,
             generated_at=generated_at,
         ),
         nodes=sorted(builder.nodes.values(), key=lambda n: n.id),
-        edges=builder.edges(),
+        edges=edges,
         issues=sorted(issues, key=lambda i: (i.kind, i.nodes, i.line or 0, i.message)),
     )
 

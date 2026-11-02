@@ -3,6 +3,7 @@ import type { StylesheetJson } from "cytoscape";
 export const ACCENT = "#7aa2f7";
 export const DANGER = "#ff6b81";
 export const WARN = "#e0af68";
+export const VIOLATION = "#d670d6";
 const EDGE = "#4a536a";
 
 export const GRAPH_STYLE: StylesheetJson = [
@@ -66,6 +67,17 @@ export const GRAPH_STYLE: StylesheetJson = [
   },
   { selector: "edge.weak", style: { "line-style": "dashed", "line-dash-pattern": [5, 4], opacity: 0.45 } },
   { selector: "edge.cycle", style: { "line-color": DANGER, "target-arrow-color": DANGER, opacity: 0.9 } },
+  {
+    selector: "edge.violation",
+    style: {
+      "line-color": VIOLATION,
+      "target-arrow-color": VIOLATION,
+      "line-style": "dashed",
+      "line-dash-pattern": [8, 4],
+      width: 2.5,
+      opacity: 1,
+    },
+  },
   { selector: ".faded", style: { opacity: 0.12 } },
   {
     selector: "edge.hl",

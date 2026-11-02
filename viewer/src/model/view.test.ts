@@ -61,7 +61,7 @@ describe("computeView", () => {
 
 describe("markCycles", () => {
   const edge = (source: string, target: string, weak = false): ViewEdge =>
-    ({ source, target, weak, count: 1, cyclic: false });
+    ({ source, target, weak, count: 1, cyclic: false, violation: false });
 
   it("ignores weak edges and finds longer cycles", () => {
     const edges = [edge("a", "b"), edge("b", "c"), edge("c", "a"), edge("c", "d"), edge("d", "c", true)];
@@ -76,5 +76,29 @@ describe("autoExpand", () => {
       "pkg:plugins", "pkg:shop", "pkg:shop.services", "pkg:tests",
     ]);
     expect([...autoExpand(index, base, 4)].sort()).toEqual(["pkg:plugins", "pkg:shop", "pkg:tests"]);
+  });
+});
+
+describe("layer violations", () => {
+  const layered = buildIndex({
+    meta: { schema_version: 1, root: "/r", source_roots: ["."], layers: ["api", "repo"] },
+    nodes: [
+      { id: "pkg:app", kind: "package", name: "app", qualname: "app" },
+      { id: "mod:app.api", kind: "module", name: "api", qualname: "app.api", parent: "pkg:app", layer: "api" },
+      { id: "mod:app.repo", kind: "module", name: "repo", qualname: "app.repo", parent: "pkg:app", layer: "repo" },
+    ],
+    edges: [
+      { source: "mod:app.api", target: "mod:app.repo", kind: "imports" },
+      { source: "mod:app.repo", target: "mod:app.api", kind: "imports", lazy: true },
+    ],
+    issues: [
+      { kind: "layer_violation", severity: "error", nodes: ["mod:app.repo", "mod:app.api"], message: "x" },
+    ],
+  });
+
+  it("marks the violating edge", () => {
+    const view = computeView(layered, { ...base, expanded: new Set(["pkg:app"]) });
+    const flags = Object.fromEntries(view.edges.map((e) => [`${e.source}>${e.target}`, e.violation]));
+    expect(flags).toEqual({ "mod:app.api>mod:app.repo": false, "mod:app.repo>mod:app.api": true });
   });
 });

@@ -1,5 +1,9 @@
 import type { Graph } from "./types/graph";
 
+/** `codemap export` inlines the graph; such files open without a server. */
+const embedded = document.getElementById("codemap-data");
+export const hasSourceApi = embedded === null;
+
 async function getJson<T>(url: string): Promise<T> {
   const response = await fetch(url);
   if (!response.ok) throw new Error(`${url}: ${response.status} ${response.statusText}`);
@@ -7,6 +11,7 @@ async function getJson<T>(url: string): Promise<T> {
 }
 
 export function fetchGraph(): Promise<Graph> {
+  if (embedded) return Promise.resolve(JSON.parse(embedded.textContent ?? "") as Graph);
   return getJson<Graph>("/api/graph");
 }
 

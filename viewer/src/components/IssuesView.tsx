@@ -3,9 +3,10 @@ import type { GraphIndex } from "../model/graphIndex";
 import { useStore } from "../store";
 import type { Issue } from "../types/graph";
 
-type Category = "cycle" | "init_cycle" | "deferred_cycle" | "unresolved_import" | "parse_error";
+type Category = "layer_violation" | "cycle" | "init_cycle" | "deferred_cycle" | "unresolved_import" | "parse_error";
 
 const CATEGORIES: Array<[Category, string, string]> = [
+  ["layer_violation", "레이어 위반", "아래 레이어가 위 레이어를 import했습니다. 설정의 [[tool.codemap.layers]] 순서를 기준으로 합니다."],
   ["cycle", "순환 의존", "import 시점에 서로를 불러오는 모듈들입니다. 불러오는 순서에 따라 ImportError가 날 수 있습니다."],
   [
     "init_cycle",
@@ -115,6 +116,22 @@ function IssueRow({ index, issue }: { index: GraphIndex; issue: Issue }) {
           {name(module)}
           {issue.line ? `:${issue.line}` : ""}
         </button>
+        {issue.kind === "layer_violation" && (
+          <div className="cycle-path">
+            {issue.nodes.map((id, i) => (
+              <span key={id}>
+                {i > 0 && <span className="arrow">→</span>}
+                <button className="link mono" onClick={() => reveal(id)}>
+                  {name(id)}
+                </button>
+                <span className="kind layer">{index.nodes.get(id)?.layer}</span>
+              </span>
+            ))}
+            <button className="small-button" onClick={() => showPath(issue.nodes)}>
+              그래프에서 보기
+            </button>
+          </div>
+        )}
       </div>
     );
   }

@@ -1,0 +1,13 @@
+[tool.codemap]
+
+[[tool.codemap.layers]]
+name = "api"
+modules = ["app.api.*"]
+
+[[tool.codemap.layers]]
+name = "service"
+modules = ["app.service.*"]
+
+[[tool.codemap.layers]]
+name = "repo"
+modules = ["app.repo.*"]

@@ -10,6 +10,8 @@ export interface Meta {
   schema_version: number;
   root: string;
   source_roots: string[];
+  layers?: string[];
+  churn_days?: number | null;
   generated_at?: string | null;
 }
 export interface Node {
@@ -23,6 +25,7 @@ export interface Node {
   doc?: string | null;
   decorators?: string[];
   is_async?: boolean;
+  layer?: string | null;
   metrics?: Metrics | null;
 }
 export interface Metrics {
@@ -33,6 +36,8 @@ export interface Metrics {
   instability?: number | null;
   complexity?: number | null;
   max_complexity?: number | null;
+  churn?: number | null;
+  hotspot?: number | null;
 }
 export interface Edge {
   source: string;
@@ -46,7 +51,7 @@ export interface Edge {
   via?: string[];
 }
 export interface Issue {
-  kind: "cycle" | "unresolved_import" | "parse_error";
+  kind: "cycle" | "unresolved_import" | "parse_error" | "layer_violation";
   severity: "error" | "warning" | "info";
   nodes: string[];
   message: string;

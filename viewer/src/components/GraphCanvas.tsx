@@ -180,7 +180,7 @@ function elements(index: GraphIndex, view: View): ElementDefinition[] {
         cyclic: e.cyclic,
         width: 1 + 3 * Math.sqrt(e.count / maxCount),
       },
-      classes: e.weak ? "weak" : "",
+      classes: [e.weak ? "weak" : "", e.violation ? "violation" : ""].join(" "),
     });
   }
   return result;

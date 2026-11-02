@@ -2,7 +2,7 @@ import { hierarchy, treemap, type HierarchyRectangularNode } from "d3-hierarchy"
 import type { Node } from "../types/graph";
 import type { GraphIndex } from "./graphIndex";
 
-export type ColorMetric = "complexity" | "instability" | "issues" | "group";
+export type ColorMetric = "complexity" | "hotspot" | "churn" | "instability" | "issues" | "group";
 
 export interface TreeDatum {
   id: string;
@@ -84,11 +84,16 @@ export function colorScale(index: GraphIndex, metric: ColorMetric, issues: Map<s
     const max = Math.max(1, ...modules.map(value));
     return { max, label: "이슈 수", value, color: (n) => colorOf(value(n), max) };
   }
-  const value = (n: Node) => n.metrics?.max_complexity ?? null;
-  // The 95th percentile keeps one monster function from washing out the rest.
+  const [label, value, floor]: [string, (n: Node) => number | null, number] =
+    metric === "hotspot"
+      ? ["핫스팟", (n) => n.metrics?.hotspot ?? null, 1]
+      : metric === "churn"
+        ? ["커밋 수", (n) => n.metrics?.churn ?? null, 1]
+        : ["최대 함수 복잡도", (n) => n.metrics?.max_complexity ?? null, 10];
+  // The 95th percentile keeps one outlier from washing out the rest.
   const sorted = modules.map((m) => value(m) ?? 0).sort((a, b) => a - b);
-  const max = Math.max(10, sorted[Math.floor(sorted.length * 0.95)] ?? 0);
-  return { max, label: "최대 함수 복잡도", value, color: (n) => colorOf(value(n), max) };
+  const max = Math.max(floor, sorted[Math.floor(sorted.length * 0.95)] ?? 0);
+  return { max, label, value, color: (n) => colorOf(value(n), max) };
 }
 
 function colorOf(value: number | null, max: number): string {

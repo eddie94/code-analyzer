@@ -69,6 +69,7 @@ export function App() {
 }
 
 function Legend() {
+  const hasLayers = useStore((s) => (s.index?.graph.meta.layers?.length ?? 0) > 0);
   const path = useStore((s) => s.path);
   const clearPath = useStore((s) => s.clearPath);
   return (
@@ -92,6 +93,12 @@ function Legend() {
           <i className="cycle" />
           순환 의존
         </div>
+        {hasLayers && (
+          <div>
+            <i className="violation" />
+            레이어 위반
+          </div>
+        )}
       </div>
       <div id="hint">더블클릭: 패키지 펼치기/접기 · 드래그: 이동 · 휠: 확대</div>
     </>

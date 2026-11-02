@@ -4,6 +4,8 @@ import { useStore } from "../store";
 
 const METRICS: Array<[ColorMetric, string]> = [
   ["complexity", "최대 함수 복잡도"],
+  ["hotspot", "핫스팟 (커밋 × 복잡도)"],
+  ["churn", "최근 커밋 수"],
   ["instability", "불안정성"],
   ["issues", "이슈 수"],
   ["group", "패키지별 색"],
@@ -15,7 +17,8 @@ export function Overview() {
   const selected = useStore((s) => s.selected);
   const select = useStore((s) => s.select);
   const reveal = useStore((s) => s.reveal);
-  const [metric, setMetric] = useState<ColorMetric>("complexity");
+  const hasHistory = index.graph.meta.churn_days != null;
+  const [metric, setMetric] = useState<ColorMetric>(hasHistory ? "hotspot" : "complexity");
   const box = useRef<HTMLDivElement>(null);
   const size = useSize(box);
 
@@ -29,7 +32,7 @@ export function Overview() {
       <div className="overview-bar">
         <span className="muted">크기 = 코드 줄 수 · 색 =</span>
         <select value={metric} onChange={(e) => setMetric(e.target.value as ColorMetric)}>
-          {METRICS.map(([value, label]) => (
+          {METRICS.filter(([value]) => hasHistory || (value !== "hotspot" && value !== "churn")).map(([value, label]) => (
             <option key={value} value={value}>
               {label}
             </option>

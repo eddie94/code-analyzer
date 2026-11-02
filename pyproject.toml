@@ -2,7 +2,7 @@
 name = "codemap"
 version = "0.1.0"
 description = "Static structure analyzer and visualizer for Python repositories"
-readme = "SPEC.md"
+readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "pydantic>=2.7",

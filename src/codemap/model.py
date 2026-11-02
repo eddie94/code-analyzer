@@ -15,7 +15,7 @@ SCHEMA_VERSION = 1
 
 NodeKind = Literal["package", "module", "class", "function", "method", "stdlib", "external"]
 EdgeKind = Literal["imports", "extends"]
-IssueKind = Literal["cycle", "unresolved_import", "parse_error"]
+IssueKind = Literal["cycle", "unresolved_import", "parse_error", "layer_violation"]
 Severity = Literal["error", "warning", "info"]
 
 
@@ -33,6 +33,10 @@ class Metrics(_Model):
     complexity: int | None = None
     # Highest complexity among contained functions and methods.
     max_complexity: int | None = None
+    # Commits touching the file in the last `Meta.churn_days` days (sum for packages).
+    churn: int | None = None
+    # churn x max_complexity (largest module value for packages).
+    hotspot: int | None = None
 
 
 class Node(_Model):
@@ -46,6 +50,8 @@ class Node(_Model):
     doc: str | None = None
     decorators: list[str] = Field(default_factory=list)
     is_async: bool = False
+    # Name of the configured layer a module belongs to.
+    layer: str | None = None
     metrics: Metrics | None = None
 
 
@@ -83,6 +89,10 @@ class Meta(_Model):
     schema_version: int
     root: str
     source_roots: list[str]
+    # Configured layer names, top (may import everything below) to bottom.
+    layers: list[str] = Field(default_factory=list)
+    # Window for churn metrics; None when git history was not used.
+    churn_days: int | None = None
     generated_at: str | None = None
 
 

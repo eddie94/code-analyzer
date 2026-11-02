@@ -52,6 +52,7 @@ button:hover, a.button:hover { border-color: var(--accent); }
 #legend i { display: inline-block; width: 26px; vertical-align: middle; margin-right: 6px; border-top: 2px solid #59627a; }
 #legend i.weak { border-top-style: dashed; }
 #legend i.cycle { border-top-color: var(--danger); }
+#legend i.violation { border-top: 2px dashed #d670d6; }
 #hint { position: absolute; right: 12px; bottom: 12px; color: var(--muted); font-size: 12px; }
 
 aside { background: var(--panel); border-left: 1px solid var(--line); overflow: auto; padding: 16px 16px 40px; }
@@ -61,6 +62,7 @@ aside h3 { margin: 18px 0 6px; font-size: 11px; color: var(--muted); text-transf
   display: inline-block; font-size: 11px; padding: 1px 7px; border-radius: 99px; margin-bottom: 8px;
   background: var(--panel-2); color: var(--muted); border: 1px solid var(--line);
 }
+.kind.layer { margin-left: 6px; color: #d670d6; border-color: rgba(214, 112, 214, .4); }
 .path { font-family: var(--mono); font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
 .doc { color: #c6cbd8; margin-top: 8px; }
 .decorators { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }

@@ -16,6 +16,8 @@ export interface ViewEdge {
   weak: boolean;
   /** Part of a cycle among the solid edges of this view. */
   cyclic: boolean;
+  /** At least one import behind this edge breaks the configured layers. */
+  violation: boolean;
 }
 
 export interface View {
@@ -54,9 +56,10 @@ export function computeView(index: GraphIndex, options: ViewOptions): View {
     if (!source || !target || source === target) continue;
     units.add(source).add(target);
     const key = `${source}\u0000${target}`;
-    const edge = edges.get(key) ?? { source, target, count: 0, weak: true, cyclic: false };
+    const edge = edges.get(key) ?? { source, target, count: 0, weak: true, cyclic: false, violation: false };
     edge.count += 1;
     edge.weak &&= weak;
+    edge.violation ||= index.layerViolations.has(`${e.source}\u0000${e.target}`);
     edges.set(key, edge);
   }
 

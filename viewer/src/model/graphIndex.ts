@@ -15,6 +15,8 @@ export interface GraphIndex {
   imports: Edge[];
   extends: Edge[];
   parseErrors: Set<string>;
+  /** `source\u0000target` module pairs that break the configured layers. */
+  layerViolations: Set<string>;
   /** Package ancestors of a node, outermost first. */
   ancestors(id: string): string[];
   /** True if `id` is `pkg` or lives somewhere below it. */
@@ -81,6 +83,9 @@ export function buildIndex(graph: Graph): GraphIndex {
     imports: graph.edges.filter((e) => e.kind === "imports"),
     extends: graph.edges.filter((e) => e.kind === "extends"),
     parseErrors: new Set(graph.issues.filter((i) => i.kind === "parse_error").flatMap((i) => i.nodes)),
+    layerViolations: new Set(
+      graph.issues.filter((i) => i.kind === "layer_violation").map((i) => `${i.nodes[0]}\u0000${i.nodes[1]}`),
+    ),
     ancestors: packageAncestors,
     isInside: (id, pkg) => id === pkg || ancestors(id).includes(pkg),
     moduleCount: (pkg) => counts.get(pkg) ?? 0,

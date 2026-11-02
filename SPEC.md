@@ -33,6 +33,8 @@
 
 **성능 목표:** 파일 5,000개 첫 분석 15초 이내(멀티프로세스), 캐시 적중 시 3초 이내.
 
+**캐시:** 파일 내용 해시를 키로 파일별 추출 결과를 저장한다. 위치는 분석 대상 리포가 아니라 사용자 캐시 디렉터리(`$CODEMAP_CACHE_DIR`, 없으면 `$XDG_CACHE_HOME/codemap` 또는 `~/.cache/codemap`)이고 형식은 JSON이다. 리포 안에 심어 둔 캐시 파일이 읽히거나 코드를 실행할 수 없게 하기 위해서다. 추출 로직이 바뀌면 `EXTRACT_VERSION`을 올린다.
+
 ## 3. Python 분석 항목
 
 ### 3.1 모듈 탐색
@@ -125,8 +127,12 @@ codemap analyze <repo> [-o out/]            # graph.json 생성
 codemap serve <repo> [--port 8700]          # 분석 후 로컬 서버 + 브라우저 열기
 codemap export <repo> -o report.html        # 데이터 내장 단일 HTML (소스 미리보기 제외)
 codemap render out/graph.json --format mermaid|dot [--level package|module] [--focus app.service]
-codemap check <repo>                        # 순환·레이어 위반 시 exit 1 (CI용)
+codemap check <repo> [--fail-on KIND] [--format text|github]   # 위반 시 exit 1 (CI용)
 ```
+
+- `analyze`, `serve`, `export`, `check`는 기본으로 캐시를 쓰고(`--no-cache`로 끔), git 기록에서 churn·핫스팟을 계산한다.
+- `check`가 실패로 보는 이슈는 `fail_on`(기본 `layer_violation`, `cycle`)으로 정한다. `cycle`은 직접 순환만 뜻하고, `__init__` 경유·타입/지연 import 순환은 제외한다. `--format github`은 GitHub Actions 주석(`::error file=...`)을 출력한다.
+- `export`는 빌드된 viewer의 JS·CSS와 그래프 데이터를 HTML 한 파일에 넣는다. 서버가 없으므로 소스 미리보기는 숨긴다.
 
 서버 API:
 - `GET /api/graph`: 분석 결과
@@ -138,6 +144,8 @@ codemap check <repo>                        # 순환·레이어 위반 시 exit 
 source_roots = ["src"]
 exclude = ["**/migrations/**", "tests/**"]
 hide_external = true
+fail_on = ["layer_violation", "cycle"]   # codemap check가 실패로 볼 이슈
+churn_days = 90                          # churn을 셀 git 기록 기간, 0이면 끔
 
 [[tool.codemap.layers]]   # 위에서 아래 방향 import만 허용
 name = "api"
@@ -181,4 +189,6 @@ code-analyzer/
 | M2 | FastAPI 서버, React viewer 뼈대, Dependency 탭, 사이드 패널, 소스 미리보기 | `codemap serve`로 실제 리포 탐색 가능 |
 | M3 | Classes·Overview·Issues 탭, 메트릭 전체, 검색·필터, URL 상태 | 4개 탭 모두 동작 |
 | M4 | 레이어 규칙과 `check`, `export` 단일 HTML, 캐시, git 핫스팟 | CI에서 위반 시 실패 |
+
+M1~M4 완료. 레이어 규칙은 모듈마다 처음 일치하는 레이어에 배정하고, TYPE_CHECKING import는 위반으로 보지 않는다.
 | v2 | 호출 그래프(best-effort), 두 커밋 간 구조 비교 | |

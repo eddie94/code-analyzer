@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { hasSourceApi } from "../api";
 import { isLibrary, type GraphIndex } from "../model/graphIndex";
 import { useStore } from "../store";
 import type { Edge, Issue, Node } from "../types/graph";
@@ -68,12 +69,13 @@ function Details({ index, node }: { index: GraphIndex; node: Node }) {
   const openSource = useStore((s) => s.openSource);
   const expanded = useStore((s) => s.expanded.has(node.id));
   const isPackage = node.kind === "package";
-  const hasSource = Boolean(node.path) && !isPackage;
+  const hasSource = hasSourceApi && Boolean(node.path) && !isPackage;
 
   return (
     <>
       <Breadcrumb index={index} node={node} />
       <span className="kind">{kindLabel(node)}</span>
+      {node.layer && <span className="kind layer">레이어: {node.layer}</span>}
       <h2>{node.qualname}</h2>
       {node.path && <div className="path">{node.path}{node.range && node.kind !== "module" ? `:${node.range[0]}` : ""}</div>}
       {node.doc && <div className="doc">{node.doc}</div>}
@@ -111,6 +113,12 @@ function ContainerDetails({ index, node }: { index: GraphIndex; node: Node }) {
         <Stat value={out.size} name="의존하는 대상" />
         <Stat value={metrics.instability?.toFixed(2) ?? "–"} name="불안정성 (0 안정 ~ 1 불안정)" />
         <Stat value={metrics.max_complexity ?? "–"} name="최대 함수 복잡도" />
+        {metrics.churn != null && (
+          <>
+            <Stat value={metrics.churn} name={`최근 ${index.graph.meta.churn_days}일 커밋 수`} />
+            <Stat value={metrics.hotspot ?? "–"} name="핫스팟 (커밋 × 복잡도)" />
+          </>
+        )}
       </div>
       <Dependencies title="의존하는 대상" entries={out} index={index} />
       <Dependencies title="이 대상을 쓰는 곳" entries={inc} index={index} />
