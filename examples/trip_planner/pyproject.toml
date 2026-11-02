@@ -1,0 +1,28 @@
+[project]
+name = "trip-planner"
+version = "0.1.0"
+description = "A made-up travel itinerary service, used to demo codemap."
+requires-python = ">=3.11"
+dependencies = ["fastapi", "uvicorn", "httpx", "openai", "redis", "pydantic"]
+
+[project.scripts]
+trip-plan = "planner.cli:main"
+
+[tool.codemap]
+churn_days = 0
+
+[[tool.codemap.layers]]
+name = "api"
+modules = ["planner.api", "planner.routes", "planner.cli"]
+
+[[tool.codemap.layers]]
+name = "core"
+modules = ["planner.core.*"]
+
+[[tool.codemap.layers]]
+name = "adapters"
+modules = ["planner.clients.*", "planner.llm.*", "planner.storage.*"]
+
+[[tool.codemap.layers]]
+name = "models"
+modules = ["planner.models", "planner.errors", "planner.settings"]
