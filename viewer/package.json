@@ -1,0 +1,32 @@
+{
+  "name": "codemap-viewer",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "test": "vitest run",
+    "typecheck": "tsc -b",
+    "gen:types": "node scripts/gen-types.mjs"
+  },
+  "dependencies": {
+    "cytoscape": "^3.30.2",
+    "cytoscape-elk": "^2.2.0",
+    "elkjs": "^0.9.3",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "shiki": "^3.2.0",
+    "zustand": "^5.0.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "@vitejs/plugin-react": "^4.4.0",
+    "json-schema-to-typescript": "^15.0.4",
+    "typescript": "~5.8.3",
+    "vite": "^6.3.0",
+    "vitest": "^3.1.0"
+  }
+}

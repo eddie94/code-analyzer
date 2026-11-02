@@ -1,0 +1,596 @@
+{
+  "meta": {
+    "schema_version": 1,
+    "root": "<fixture>",
+    "source_roots": [
+      "src"
+    ]
+  },
+  "nodes": [
+    {
+      "id": "cls:plugins.fancy.FancyOrder",
+      "kind": "class",
+      "name": "FancyOrder",
+      "qualname": "plugins.fancy.FancyOrder",
+      "parent": "mod:plugins.fancy",
+      "path": "src/plugins/fancy.py",
+      "range": [
+        4,
+        5
+      ]
+    },
+    {
+      "id": "cls:shop.models.Base",
+      "kind": "class",
+      "name": "Base",
+      "qualname": "shop.models.Base",
+      "parent": "mod:shop.models",
+      "path": "src/shop/models.py",
+      "range": [
+        12,
+        13
+      ]
+    },
+    {
+      "id": "cls:shop.models.Order",
+      "kind": "class",
+      "name": "Order",
+      "qualname": "shop.models.Order",
+      "parent": "mod:shop.models",
+      "path": "src/shop/models.py",
+      "range": [
+        16,
+        29
+      ],
+      "doc": "An order.",
+      "decorators": [
+        "dataclasses.dataclass"
+      ]
+    },
+    {
+      "id": "cls:shop.services.billing.Invoice",
+      "kind": "class",
+      "name": "Invoice",
+      "qualname": "shop.services.billing.Invoice",
+      "parent": "mod:shop.services.billing",
+      "path": "src/shop/services/billing.py",
+      "range": [
+        10,
+        17
+      ]
+    },
+    {
+      "id": "external:requests",
+      "kind": "external",
+      "name": "requests",
+      "qualname": "requests"
+    },
+    {
+      "id": "external:ujson",
+      "kind": "external",
+      "name": "ujson",
+      "qualname": "ujson"
+    },
+    {
+      "id": "fn:shop.notify.send",
+      "kind": "function",
+      "name": "send",
+      "qualname": "shop.notify.send",
+      "parent": "mod:shop.notify",
+      "path": "src/shop/notify.py",
+      "range": [
+        4,
+        5
+      ],
+      "metrics": {
+        "complexity": 1
+      }
+    },
+    {
+      "id": "fn:tests.models_check.check_total",
+      "kind": "function",
+      "name": "check_total",
+      "qualname": "tests.models_check.check_total",
+      "parent": "mod:tests.models_check",
+      "path": "tests/models_check.py",
+      "range": [
+        4,
+        5
+      ],
+      "metrics": {
+        "complexity": 1
+      }
+    },
+    {
+      "id": "meth:shop.models.Order.total",
+      "kind": "method",
+      "name": "total",
+      "qualname": "shop.models.Order.total",
+      "parent": "cls:shop.models.Order",
+      "path": "src/shop/models.py",
+      "range": [
+        26,
+        29
+      ],
+      "metrics": {
+        "complexity": 5
+      }
+    },
+    {
+      "id": "meth:shop.services.billing.Invoice.__init__",
+      "kind": "method",
+      "name": "__init__",
+      "qualname": "shop.services.billing.Invoice.__init__",
+      "parent": "cls:shop.services.billing.Invoice",
+      "path": "src/shop/services/billing.py",
+      "range": [
+        11,
+        12
+      ],
+      "metrics": {
+        "complexity": 1
+      }
+    },
+    {
+      "id": "meth:shop.services.billing.Invoice.pay",
+      "kind": "method",
+      "name": "pay",
+      "qualname": "shop.services.billing.Invoice.pay",
+      "parent": "cls:shop.services.billing.Invoice",
+      "path": "src/shop/services/billing.py",
+      "range": [
+        14,
+        17
+      ],
+      "is_async": true,
+      "metrics": {
+        "complexity": 1
+      }
+    },
+    {
+      "id": "mod:plugins.fancy",
+      "kind": "module",
+      "name": "fancy",
+      "qualname": "plugins.fancy",
+      "parent": "pkg:plugins",
+      "path": "src/plugins/fancy.py",
+      "range": [
+        1,
+        5
+      ],
+      "metrics": {
+        "loc": 3,
+        "symbols": 1,
+        "fan_in": 0,
+        "fan_out": 1
+      }
+    },
+    {
+      "id": "mod:shop",
+      "kind": "module",
+      "name": "__init__",
+      "qualname": "shop",
+      "parent": "pkg:shop",
+      "path": "src/shop/__init__.py",
+      "range": [
+        1,
+        5
+      ],
+      "doc": "Toy shop package used by the codemap test suite.",
+      "metrics": {
+        "loc": 2,
+        "symbols": 0,
+        "fan_in": 0,
+        "fan_out": 1
+      }
+    },
+    {
+      "id": "mod:shop.bad_import",
+      "kind": "module",
+      "name": "bad_import",
+      "qualname": "shop.bad_import",
+      "parent": "pkg:shop",
+      "path": "src/shop/bad_import.py",
+      "range": [
+        1,
+        3
+      ],
+      "metrics": {
+        "loc": 3,
+        "symbols": 0,
+        "fan_in": 0,
+        "fan_out": 0
+      }
+    },
+    {
+      "id": "mod:shop.broken",
+      "kind": "module",
+      "name": "broken",
+      "qualname": "shop.broken",
+      "parent": "pkg:shop",
+      "path": "src/shop/broken.py",
+      "range": [
+        1,
+        2
+      ]
+    },
+    {
+      "id": "mod:shop.cycle_a",
+      "kind": "module",
+      "name": "cycle_a",
+      "qualname": "shop.cycle_a",
+      "parent": "pkg:shop",
+      "path": "src/shop/cycle_a.py",
+      "range": [
+        1,
+        3
+      ],
+      "metrics": {
+        "loc": 2,
+        "symbols": 0,
+        "fan_in": 1,
+        "fan_out": 1
+      }
+    },
+    {
+      "id": "mod:shop.cycle_b",
+      "kind": "module",
+      "name": "cycle_b",
+      "qualname": "shop.cycle_b",
+      "parent": "pkg:shop",
+      "path": "src/shop/cycle_b.py",
+      "range": [
+        1,
+        3
+      ],
+      "metrics": {
+        "loc": 2,
+        "symbols": 0,
+        "fan_in": 1,
+        "fan_out": 1
+      }
+    },
+    {
+      "id": "mod:shop.models",
+      "kind": "module",
+      "name": "models",
+      "qualname": "shop.models",
+      "parent": "pkg:shop",
+      "path": "src/shop/models.py",
+      "range": [
+        1,
+        29
+      ],
+      "doc": "Domain models.",
+      "metrics": {
+        "loc": 14,
+        "symbols": 3,
+        "fan_in": 4,
+        "fan_out": 0
+      }
+    },
+    {
+      "id": "mod:shop.notify",
+      "kind": "module",
+      "name": "notify",
+      "qualname": "shop.notify",
+      "parent": "pkg:shop",
+      "path": "src/shop/notify.py",
+      "range": [
+        1,
+        5
+      ],
+      "metrics": {
+        "loc": 3,
+        "symbols": 1,
+        "fan_in": 1,
+        "fan_out": 1
+      }
+    },
+    {
+      "id": "mod:shop.services",
+      "kind": "module",
+      "name": "__init__",
+      "qualname": "shop.services",
+      "parent": "pkg:shop.services",
+      "path": "src/shop/services/__init__.py",
+      "metrics": {
+        "loc": 0,
+        "symbols": 0,
+        "fan_in": 0,
+        "fan_out": 0
+      }
+    },
+    {
+      "id": "mod:shop.services.billing",
+      "kind": "module",
+      "name": "billing",
+      "qualname": "shop.services.billing",
+      "parent": "pkg:shop.services",
+      "path": "src/shop/services/billing.py",
+      "range": [
+        1,
+        17
+      ],
+      "metrics": {
+        "loc": 12,
+        "symbols": 3,
+        "fan_in": 1,
+        "fan_out": 2
+      }
+    },
+    {
+      "id": "mod:tests.models_check",
+      "kind": "module",
+      "name": "models_check",
+      "qualname": "tests.models_check",
+      "parent": "pkg:tests",
+      "path": "tests/models_check.py",
+      "range": [
+        1,
+        5
+      ],
+      "metrics": {
+        "loc": 3,
+        "symbols": 1,
+        "fan_in": 0,
+        "fan_out": 1
+      }
+    },
+    {
+      "id": "pkg:plugins",
+      "kind": "package",
+      "name": "plugins",
+      "qualname": "plugins",
+      "path": "src/plugins",
+      "metrics": {
+        "loc": 3,
+        "symbols": 1
+      }
+    },
+    {
+      "id": "pkg:shop",
+      "kind": "package",
+      "name": "shop",
+      "qualname": "shop",
+      "path": "src/shop",
+      "metrics": {
+        "loc": 38,
+        "symbols": 7
+      }
+    },
+    {
+      "id": "pkg:shop.services",
+      "kind": "package",
+      "name": "services",
+      "qualname": "shop.services",
+      "parent": "pkg:shop",
+      "path": "src/shop/services",
+      "metrics": {
+        "loc": 12,
+        "symbols": 3
+      }
+    },
+    {
+      "id": "pkg:tests",
+      "kind": "package",
+      "name": "tests",
+      "qualname": "tests",
+      "path": "tests",
+      "metrics": {
+        "loc": 3,
+        "symbols": 1
+      }
+    },
+    {
+      "id": "stdlib:dataclasses",
+      "kind": "stdlib",
+      "name": "dataclasses",
+      "qualname": "dataclasses"
+    },
+    {
+      "id": "stdlib:json",
+      "kind": "stdlib",
+      "name": "json",
+      "qualname": "json"
+    },
+    {
+      "id": "stdlib:typing",
+      "kind": "stdlib",
+      "name": "typing",
+      "qualname": "typing"
+    }
+  ],
+  "edges": [
+    {
+      "source": "cls:plugins.fancy.FancyOrder",
+      "target": "cls:shop.models.Order",
+      "kind": "extends"
+    },
+    {
+      "source": "cls:shop.models.Order",
+      "target": "cls:shop.models.Base",
+      "kind": "extends"
+    },
+    {
+      "source": "mod:plugins.fancy",
+      "target": "mod:shop.models",
+      "kind": "imports",
+      "names": [
+        "models"
+      ],
+      "line": 1
+    },
+    {
+      "source": "mod:shop",
+      "target": "mod:shop.models",
+      "kind": "imports",
+      "names": [
+        "Order"
+      ],
+      "line": 3
+    },
+    {
+      "source": "mod:shop.cycle_a",
+      "target": "mod:shop.cycle_b",
+      "kind": "imports",
+      "names": [
+        "cycle_b"
+      ],
+      "line": 1
+    },
+    {
+      "source": "mod:shop.cycle_b",
+      "target": "mod:shop.cycle_a",
+      "kind": "imports",
+      "names": [
+        "VALUE"
+      ],
+      "line": 1
+    },
+    {
+      "source": "mod:shop.models",
+      "target": "mod:shop.services.billing",
+      "kind": "imports",
+      "names": [
+        "Invoice"
+      ],
+      "line": 9,
+      "type_only": true
+    },
+    {
+      "source": "mod:shop.models",
+      "target": "stdlib:dataclasses",
+      "kind": "imports",
+      "line": 5
+    },
+    {
+      "source": "mod:shop.models",
+      "target": "stdlib:typing",
+      "kind": "imports",
+      "names": [
+        "TYPE_CHECKING"
+      ],
+      "line": 6
+    },
+    {
+      "source": "mod:shop.notify",
+      "target": "mod:shop.services.billing",
+      "kind": "imports",
+      "names": [
+        "billing"
+      ],
+      "line": 1
+    },
+    {
+      "source": "mod:shop.services.billing",
+      "target": "external:requests",
+      "kind": "imports",
+      "line": 2
+    },
+    {
+      "source": "mod:shop.services.billing",
+      "target": "external:ujson",
+      "kind": "imports",
+      "line": 5,
+      "conditional": true
+    },
+    {
+      "source": "mod:shop.services.billing",
+      "target": "mod:shop.models",
+      "kind": "imports",
+      "names": [
+        "Order"
+      ],
+      "line": 1,
+      "via": [
+        "mod:shop"
+      ]
+    },
+    {
+      "source": "mod:shop.services.billing",
+      "target": "mod:shop.notify",
+      "kind": "imports",
+      "names": [
+        "send"
+      ],
+      "line": 15,
+      "lazy": true
+    },
+    {
+      "source": "mod:shop.services.billing",
+      "target": "stdlib:json",
+      "kind": "imports",
+      "line": 7,
+      "conditional": true
+    },
+    {
+      "source": "mod:tests.models_check",
+      "target": "mod:shop.models",
+      "kind": "imports",
+      "names": [
+        "Order"
+      ],
+      "line": 1
+    }
+  ],
+  "issues": [
+    {
+      "kind": "cycle",
+      "severity": "warning",
+      "nodes": [
+        "mod:shop.cycle_a",
+        "mod:shop.cycle_b"
+      ],
+      "message": "Import cycle across 2 modules at import time",
+      "runtime": true
+    },
+    {
+      "kind": "cycle",
+      "severity": "info",
+      "nodes": [
+        "mod:shop.models",
+        "mod:shop.notify",
+        "mod:shop.services.billing"
+      ],
+      "message": "Import cycle across 3 modules through TYPE_CHECKING or function-level imports",
+      "runtime": false
+    },
+    {
+      "kind": "parse_error",
+      "severity": "error",
+      "nodes": [
+        "mod:shop.broken"
+      ],
+      "message": "syntax error: invalid syntax",
+      "line": 1
+    },
+    {
+      "kind": "unresolved_import",
+      "severity": "warning",
+      "nodes": [
+        "mod:shop.bad_import"
+      ],
+      "message": "cannot resolve 'from .missing import thing'",
+      "line": 1
+    },
+    {
+      "kind": "unresolved_import",
+      "severity": "warning",
+      "nodes": [
+        "mod:shop.bad_import"
+      ],
+      "message": "cannot resolve module 'shop.nothing'",
+      "line": 2
+    },
+    {
+      "kind": "unresolved_import",
+      "severity": "warning",
+      "nodes": [
+        "mod:shop.bad_import"
+      ],
+      "message": "relative import '....' goes beyond the top level",
+      "line": 3
+    }
+  ]
+}

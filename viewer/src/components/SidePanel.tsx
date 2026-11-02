@@ -1,0 +1,264 @@
+import type { ReactNode } from "react";
+import { isLibrary, type GraphIndex } from "../model/graphIndex";
+import { useStore } from "../store";
+import type { Edge, Issue, Node } from "../types/graph";
+
+const LIST_LIMIT = 40;
+
+export function SidePanel() {
+  const index = useStore((s) => s.index)!;
+  const selected = useStore((s) => s.selected);
+  const node = selected ? index.nodes.get(selected) : undefined;
+  return <aside>{node ? <Details index={index} node={node} /> : <Overview index={index} />}</aside>;
+}
+
+function Overview({ index }: { index: GraphIndex }) {
+  const { graph, modules } = index;
+  const loc = modules.reduce((sum, m) => sum + (m.metrics?.loc ?? 0), 0);
+  const count = (kind: Node["kind"]) => graph.nodes.filter((n) => n.kind === kind).length;
+  const severity = { error: 0, warning: 1, info: 2 };
+  const issues = [...graph.issues].sort((a, b) => severity[a.severity] - severity[b.severity]);
+  return (
+    <>
+      <span className="kind">repository</span>
+      <h2>{graph.meta.root.split("/").pop()}</h2>
+      <div className="stats">
+        <Stat value={modules.length} name="모듈" />
+        <Stat value={count("package")} name="패키지" />
+        <Stat value={loc.toLocaleString()} name="코드 줄 수" />
+        <Stat value={count("class")} name="클래스" />
+      </div>
+      <h3>이슈 ({issues.length})</h3>
+      {issues.length ? issues.slice(0, 100).map((issue, i) => <IssueCard key={i} index={index} issue={issue} />) : <p className="muted">없음</p>}
+      <h3>사용법</h3>
+      <p className="muted">
+        노드를 클릭하면 상세 정보, 더블클릭하면 패키지를 펼치거나 접습니다. 마우스를 올리면 연결된 의존만 강조됩니다.
+      </p>
+    </>
+  );
+}
+
+function IssueCard({ index, issue }: { index: GraphIndex; issue: Issue }) {
+  const reveal = useStore((s) => s.reveal);
+  const names = issue.nodes.map((id) => index.nodes.get(id)?.qualname ?? id);
+  const where =
+    names.length > 1
+      ? `${names.length}개 모듈: ${names.slice(0, 3).join(", ")}${names.length > 3 ? " …" : ""}`
+      : `${names[0]}${issue.line ? `:${issue.line}` : ""}`;
+  return (
+    <div className={`issue ${issue.severity}`} onClick={() => reveal(issue.nodes[0])}>
+      {issue.message}
+      <small>{where}</small>
+    </div>
+  );
+}
+
+function Details({ index, node }: { index: GraphIndex; node: Node }) {
+  const { toggle, setSourceOpen } = useStore();
+  const expanded = useStore((s) => s.expanded.has(node.id));
+  const isPackage = node.kind === "package";
+  const hasSource = Boolean(node.path) && !isPackage;
+
+  return (
+    <>
+      <Breadcrumb index={index} node={node} />
+      <span className="kind">{kindLabel(node)}</span>
+      <h2>{node.qualname}</h2>
+      {node.path && <div className="path">{node.path}{node.range && node.kind !== "module" ? `:${node.range[0]}` : ""}</div>}
+      {node.doc && <div className="doc">{node.doc}</div>}
+      {node.decorators?.length ? (
+        <div className="decorators">{node.decorators.map((d) => <code key={d}>@{d}</code>)}</div>
+      ) : null}
+      <div className="actions">
+        {isPackage && <button onClick={() => toggle(node.id)}>{expanded ? "접기" : "펼치기"}</button>}
+        {hasSource && <button onClick={() => setSourceOpen(true)}>소스 보기</button>}
+      </div>
+      {node.kind === "package" || node.kind === "module" ? <ContainerDetails index={index} node={node} /> : null}
+      {node.kind === "class" ? <ClassDetails index={index} node={node} /> : null}
+      {node.kind === "function" || node.kind === "method" ? <FunctionDetails node={node} /> : null}
+      {isLibrary(node) ? <Dependencies title="이 라이브러리를 쓰는 곳" entries={incoming(index, node.id)} index={index} /> : null}
+    </>
+  );
+}
+
+function ContainerDetails({ index, node }: { index: GraphIndex; node: Node }) {
+  const metrics = node.metrics ?? {};
+  const inside = (id: string) => (node.kind === "package" ? index.isInside(id, node.id) : id === node.id);
+  const out = group(index.imports.filter((e) => inside(e.source) && !inside(e.target)), (e) => e.target);
+  const inc = group(index.imports.filter((e) => inside(e.target) && !inside(e.source)), (e) => e.source);
+  const symbols = (index.children.get(node.id) ?? []).filter((n) => n.kind === "class" || n.kind === "function");
+  return (
+    <>
+      <div className="stats">
+        <Stat value={metrics.loc ?? "–"} name="코드 줄 수" />
+        {node.kind === "package" ? (
+          <Stat value={index.moduleCount(node.id)} name="모듈" />
+        ) : (
+          <Stat value={metrics.symbols ?? "–"} name="클래스·함수" />
+        )}
+        <Stat value={inc.size} name="이 대상을 쓰는 모듈" />
+        <Stat value={out.size} name="의존하는 대상" />
+      </div>
+      <Dependencies title="의존하는 대상" entries={out} index={index} />
+      <Dependencies title="이 대상을 쓰는 곳" entries={inc} index={index} />
+      {symbols.length > 0 && (
+        <>
+          <h3>클래스·함수 ({symbols.length})</h3>
+          <SymbolList index={index} symbols={symbols} />
+        </>
+      )}
+    </>
+  );
+}
+
+function ClassDetails({ index, node }: { index: GraphIndex; node: Node }) {
+  const bases = index.extends.filter((e) => e.source === node.id).map((e) => e.target);
+  const subclasses = index.extends.filter((e) => e.target === node.id).map((e) => e.source);
+  const members = index.children.get(node.id) ?? [];
+  return (
+    <>
+      {bases.length > 0 && <NodeList title="상속하는 클래스" ids={bases} index={index} />}
+      {subclasses.length > 0 && <NodeList title="하위 클래스" ids={subclasses} index={index} />}
+      {members.length > 0 && (
+        <>
+          <h3>멤버 ({members.length})</h3>
+          <SymbolList index={index} symbols={members} />
+        </>
+      )}
+    </>
+  );
+}
+
+function FunctionDetails({ node }: { node: Node }) {
+  const lines = node.range ? node.range[1] - node.range[0] + 1 : null;
+  return (
+    <div className="stats">
+      <Stat value={node.metrics?.complexity ?? "–"} name="순환 복잡도" />
+      <Stat value={lines ?? "–"} name="줄 수" />
+    </div>
+  );
+}
+
+function SymbolList({ index, symbols }: { index: GraphIndex; symbols: Node[] }) {
+  const select = useStore((s) => s.select);
+  return (
+    <ul className="list">
+      {symbols.map((s) => (
+        <li key={s.id} onClick={() => select(s.id)}>
+          <span className="name">
+            {s.name}
+            {s.is_async && <span className="tag">async</span>}
+          </span>
+          <span className="meta">
+            {kindLabel(s)} · L{s.range?.[0]}
+            {s.metrics?.complexity ? ` · 복잡도 ${s.metrics.complexity}` : ""}
+            {index.children.get(s.id)?.length ? ` · ${index.children.get(s.id)!.length} 멤버` : ""}
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+interface Entry {
+  count: number;
+  weak: boolean;
+  names: Set<string>;
+}
+
+function group(edges: Edge[], key: (e: Edge) => string): Map<string, Entry> {
+  const map = new Map<string, Entry>();
+  for (const e of edges) {
+    const entry = map.get(key(e)) ?? { count: 0, weak: true, names: new Set() };
+    entry.count += 1;
+    entry.weak &&= Boolean(e.type_only || e.lazy);
+    e.names?.forEach((n) => entry.names.add(n));
+    map.set(key(e), entry);
+  }
+  return map;
+}
+
+function incoming(index: GraphIndex, id: string) {
+  return group(index.imports.filter((e) => e.target === id), (e) => e.source);
+}
+
+function Dependencies({ title, entries, index }: { title: string; entries: Map<string, Entry>; index: GraphIndex }) {
+  const reveal = useStore((s) => s.reveal);
+  const select = useStore((s) => s.select);
+  if (!entries.size) return null;
+  const rows = [...entries].sort((a, b) => b[1].count - a[1].count || a[0].localeCompare(b[0]));
+  return (
+    <>
+      <h3>
+        {title} ({entries.size})
+      </h3>
+      <ul className="list">
+        {rows.slice(0, LIST_LIMIT).map(([id, entry]) => {
+          const node = index.nodes.get(id)!;
+          return (
+            <li key={id} onClick={() => (isLibrary(node) ? select(id) : reveal(id))}>
+              <span className="name">
+                {node.qualname}
+                {entry.weak && <span className="tag">지연/타입</span>}
+              </span>
+              <span className="meta">{[...entry.names].slice(0, 3).join(", ")}</span>
+            </li>
+          );
+        })}
+      </ul>
+      {rows.length > LIST_LIMIT && <p className="muted">외 {rows.length - LIST_LIMIT}개</p>}
+    </>
+  );
+}
+
+function NodeList({ title, ids, index }: { title: string; ids: string[]; index: GraphIndex }) {
+  const reveal = useStore((s) => s.reveal);
+  return (
+    <>
+      <h3>{title}</h3>
+      <ul className="list">
+        {ids.map((id) => (
+          <li key={id} onClick={() => reveal(id)}>
+            <span className="name">{index.nodes.get(id)?.qualname ?? id}</span>
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+}
+
+function Breadcrumb({ index, node }: { index: GraphIndex; node: Node }) {
+  const select = useStore((s) => s.select);
+  const trail: ReactNode[] = [];
+  for (let id = node.parent; id; id = index.nodes.get(id)?.parent) {
+    const parent = index.nodes.get(id)!;
+    trail.unshift(
+      <button key={id} className="crumb" onClick={() => select(id)}>
+        {parent.kind === "module" && parent.name === "__init__" ? "__init__" : parent.name}
+      </button>,
+    );
+  }
+  return (
+    <nav className="breadcrumb">
+      <button className="crumb" onClick={() => select(null)}>
+        repo
+      </button>
+      {trail}
+    </nav>
+  );
+}
+
+function Stat({ value, name }: { value: ReactNode; name: string }) {
+  return (
+    <div className="stat">
+      <b>{value}</b>
+      <span>{name}</span>
+    </div>
+  );
+}
+
+function kindLabel(node: Node): string {
+  if (node.kind === "function") return node.is_async ? "async def" : "def";
+  if (node.kind === "method") return node.is_async ? "async method" : "method";
+  return node.kind;
+}

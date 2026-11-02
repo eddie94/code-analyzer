@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+.venv/
+.codemap/
+out/
+.ruff_cache/
+.pytest_cache/
+node_modules/
+src/codemap/server/static/
+*.tsbuildinfo
