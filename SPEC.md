@@ -66,9 +66,10 @@ import 엣지마다 다음 속성을 붙인다.
 |---|---|---|
 | LOC, 심볼 수 | 모듈, 패키지 | 빈 줄·주석·docstring 제외 |
 | fan-in / fan-out | 모듈, 패키지 | 런타임 import 기준 |
-| Instability `Ce/(Ca+Ce)` | 패키지 | |
+| Instability `Ce/(Ca+Ce)` | 모듈, 패키지 | 패키지는 경계를 넘는 모듈 수로 계산 |
+| 최대 함수 복잡도 | 모듈, 패키지 | 안에 든 함수·메서드 중 최댓값 |
 | 순환 복잡도 | 함수 | 분기 노드 수 + 1 (`ast` 직접 계산) |
-| 순환 import | 모듈, 패키지 | Tarjan SCC. 런타임 순환과 type-only 포함 순환을 구분 |
+| 순환 import | 모듈 | Tarjan SCC. 세 종류로 나눔: 직접 순환(warning), 패키지 `__init__`를 거쳐야만 닫히는 순환(info), TYPE_CHECKING·함수 안 import로만 닫히는 순환(info). 각 이슈에 가장 짧은 순환 예시(`examples`)를 최대 3개 담는다 |
 | 핫스팟 (선택) | 모듈 | 최근 N일 git 커밋 수 × 복잡도 |
 | 레이어 위반 | import 엣지 | 설정한 레이어 순서 역방향 import |
 
@@ -97,7 +98,7 @@ import 엣지마다 다음 속성을 붙인다.
 ```
 - node kind: `package | module | class | function | method | stdlib | external`
 - edge kind: `imports | extends` (v2: `calls`). 포함 관계는 별도 엣지 없이 node의 `parent`로 표현한다.
-- issue kind: `cycle | unresolved_import | parse_error`. 파싱 실패도 issue로 기록한다.
+- issue kind: `cycle | unresolved_import | parse_error`. 파싱 실패도 issue로 기록한다. 순환 이슈에는 `runtime`, `through_init`, `examples`가 붙는다.
 - id 접두사: `pkg: mod: cls: fn: meth: stdlib: external:` + 점 표기 qualified name. `__init__.py`는 `mod:<패키지명>`이고 부모는 `pkg:<패키지명>`이다.
 - import 엣지는 (source, target) 단위로 합친다. `type_only`/`lazy`/`conditional`은 합쳐진 import가 모두 해당할 때만 true다.
 - 기본값과 같은 필드는 출력에서 생략한다. 출력은 정렬해서 같은 입력이면 항상 같은 파일이 나온다.

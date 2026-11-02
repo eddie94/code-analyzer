@@ -36,9 +36,10 @@ def test_module_level(graph: Graph):
     a, b = node_id(text, "cycle_a"), node_id(text, "cycle_b")
     edges = [line.strip() for line in text.splitlines() if "-->" in line or "-.->" in line]
     assert f"{a} --> {b}" in edges and f"{b} --> {a}" in edges
-    # only the import-time cycle is highlighted
+    # import-time cycles are highlighted (cycle_a/cycle_b and shop/registry); the
+    # TYPE_CHECKING and lazy one is not
     style = next(line for line in text.splitlines() if "linkStyle" in line)
-    assert len(style.split()[1].split(",")) == 2
+    assert len(style.split()[1].split(",")) == 4
 
     models, billing = node_id(text, "models"), node_id(text, "billing")
     assert f"{models} -.-> {billing}" in edges  # TYPE_CHECKING import is dotted

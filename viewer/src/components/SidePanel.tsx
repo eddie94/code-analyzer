@@ -13,6 +13,7 @@ export function SidePanel() {
 }
 
 function Overview({ index }: { index: GraphIndex }) {
+  const setTab = useStore((s) => s.setTab);
   const { graph, modules } = index;
   const loc = modules.reduce((sum, m) => sum + (m.metrics?.loc ?? 0), 0);
   const count = (kind: Node["kind"]) => graph.nodes.filter((n) => n.kind === kind).length;
@@ -29,7 +30,16 @@ function Overview({ index }: { index: GraphIndex }) {
         <Stat value={count("class")} name="클래스" />
       </div>
       <h3>이슈 ({issues.length})</h3>
-      {issues.length ? issues.slice(0, 100).map((issue, i) => <IssueCard key={i} index={index} issue={issue} />) : <p className="muted">없음</p>}
+      {issues.length ? (
+        issues.slice(0, 5).map((issue, i) => <IssueCard key={i} index={index} issue={issue} />)
+      ) : (
+        <p className="muted">없음</p>
+      )}
+      {issues.length > 5 && (
+        <button className="link" onClick={() => setTab("issues")}>
+          이슈 {issues.length}개 모두 보기 →
+        </button>
+      )}
       <h3>사용법</h3>
       <p className="muted">
         노드를 클릭하면 상세 정보, 더블클릭하면 패키지를 펼치거나 접습니다. 마우스를 올리면 연결된 의존만 강조됩니다.
@@ -54,7 +64,8 @@ function IssueCard({ index, issue }: { index: GraphIndex; issue: Issue }) {
 }
 
 function Details({ index, node }: { index: GraphIndex; node: Node }) {
-  const { toggle, setSourceOpen } = useStore();
+  const toggle = useStore((s) => s.toggle);
+  const openSource = useStore((s) => s.openSource);
   const expanded = useStore((s) => s.expanded.has(node.id));
   const isPackage = node.kind === "package";
   const hasSource = Boolean(node.path) && !isPackage;
@@ -71,7 +82,7 @@ function Details({ index, node }: { index: GraphIndex; node: Node }) {
       ) : null}
       <div className="actions">
         {isPackage && <button onClick={() => toggle(node.id)}>{expanded ? "접기" : "펼치기"}</button>}
-        {hasSource && <button onClick={() => setSourceOpen(true)}>소스 보기</button>}
+        {hasSource && <button onClick={() => openSource()}>소스 보기</button>}
       </div>
       {node.kind === "package" || node.kind === "module" ? <ContainerDetails index={index} node={node} /> : null}
       {node.kind === "class" ? <ClassDetails index={index} node={node} /> : null}
@@ -98,6 +109,8 @@ function ContainerDetails({ index, node }: { index: GraphIndex; node: Node }) {
         )}
         <Stat value={inc.size} name="이 대상을 쓰는 모듈" />
         <Stat value={out.size} name="의존하는 대상" />
+        <Stat value={metrics.instability?.toFixed(2) ?? "–"} name="불안정성 (0 안정 ~ 1 불안정)" />
+        <Stat value={metrics.max_complexity ?? "–"} name="최대 함수 복잡도" />
       </div>
       <Dependencies title="의존하는 대상" entries={out} index={index} />
       <Dependencies title="이 대상을 쓰는 곳" entries={inc} index={index} />

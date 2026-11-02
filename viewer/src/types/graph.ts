@@ -30,7 +30,9 @@ export interface Metrics {
   symbols?: number | null;
   fan_in?: number | null;
   fan_out?: number | null;
+  instability?: number | null;
   complexity?: number | null;
+  max_complexity?: number | null;
 }
 export interface Edge {
   source: string;
@@ -50,4 +52,6 @@ export interface Issue {
   message: string;
   line?: number | null;
   runtime?: boolean | null;
+  through_init?: boolean | null;
+  examples?: string[][];
 }

@@ -124,6 +124,28 @@
           ],
           "default": null,
           "title": "Runtime"
+        },
+        "through_init": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Through Init"
+        },
+        "examples": {
+          "items": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "title": "Examples",
+          "type": "array"
         }
       },
       "required": [
@@ -225,6 +247,18 @@
           "default": null,
           "title": "Fan Out"
         },
+        "instability": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Instability"
+        },
         "complexity": {
           "anyOf": [
             {
@@ -236,6 +270,18 @@
           ],
           "default": null,
           "title": "Complexity"
+        },
+        "max_complexity": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Complexity"
         }
       },
       "title": "Metrics",

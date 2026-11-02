@@ -9,7 +9,7 @@ const graph: Graph = JSON.parse(
   readFileSync(new URL("../../../tests/snapshots/shop.json", import.meta.url), "utf8"),
 );
 const index = buildIndex(graph);
-const base = { showExternal: false, showWeak: true };
+const base = { showExternal: false, showWeak: true, hideTests: false };
 
 describe("unitOf", () => {
   it("folds modules into their outermost collapsed package", () => {
@@ -42,9 +42,15 @@ describe("computeView", () => {
     expect(view.units).toContain("pkg:shop.services");
     expect(view.units).toContain("mod:shop.cycle_a");
     const cycle = view.edges.filter((e) => e.cyclic).map((e) => e.source).sort();
-    expect(cycle).toEqual(["mod:shop.cycle_a", "mod:shop.cycle_b"]);
+    // cycle_a <-> cycle_b, and shop/__init__ <-> shop.registry
+    expect(cycle).toEqual(["mod:shop", "mod:shop.cycle_a", "mod:shop.cycle_b", "mod:shop.registry"]);
     const typeOnly = view.edges.find((e) => e.source === "mod:shop.models" && e.target === "pkg:shop.services");
     expect(typeOnly?.weak).toBe(true);
+  });
+
+  it("can hide tests", () => {
+    const view = computeView(index, { ...base, hideTests: true, expanded: new Set() });
+    expect(view.units).toEqual(["pkg:plugins", "pkg:shop"]);
   });
 
   it("can drop type-only and lazy imports", () => {

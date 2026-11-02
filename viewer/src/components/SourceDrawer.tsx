@@ -9,10 +9,15 @@ export function SourceDrawer() {
   const index = useStore((s) => s.index)!;
   const selected = useStore((s) => s.selected);
   const open = useStore((s) => s.sourceOpen);
-  const setSourceOpen = useStore((s) => s.setSourceOpen);
+  const sourceLine = useStore((s) => s.sourceLine);
+  const closeSource = useStore((s) => s.closeSource);
   const node = selected ? index.nodes.get(selected) : undefined;
   const path = node?.path ?? null;
-  const range = node && node.kind !== "module" ? (node.range ?? null) : null;
+  const range: [number, number] | null = sourceLine
+    ? [sourceLine, sourceLine]
+    : node && node.kind !== "module"
+      ? (node.range ?? null)
+      : null;
   const key = `${path}:${range?.join("-")}`;
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const body = useRef<HTMLDivElement>(null);
@@ -31,15 +36,15 @@ export function SourceDrawer() {
   }, [open, key]);
 
   useEffect(() => {
-    body.current?.querySelector(".line.hl")?.scrollIntoView({ block: "start" });
+    body.current?.querySelector(".line.hl")?.scrollIntoView({ block: sourceLine ? "center" : "start" });
   }, [loaded]);
 
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setSourceOpen(false);
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && closeSource();
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open, setSourceOpen]);
+  }, [open, closeSource]);
 
   if (!open || !node || !path) return null;
   const line = range?.[0] ?? 1;
@@ -59,7 +64,7 @@ export function SourceDrawer() {
         <a className="button" href={editorUrl}>
           VS Code에서 열기
         </a>
-        <button onClick={() => setSourceOpen(false)} aria-label="닫기">
+        <button onClick={closeSource} aria-label="닫기">
           ✕
         </button>
       </div>

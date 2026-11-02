@@ -20,10 +20,15 @@ export interface GraphIndex {
   /** True if `id` is `pkg` or lives somewhere below it. */
   isInside(id: string, pkg: string): boolean;
   moduleCount(pkg: string): number;
+  /** Test modules, and packages holding nothing but tests. */
+  isTest(id: string): boolean;
   /** The module that contains a symbol (or the node itself for modules). */
   moduleOf(id: string): string | null;
   color(node: Node): string;
 }
+
+const isTestPart = (part: string) =>
+  part === "tests" || part === "test" || part === "conftest" || part.startsWith("test_") || part.endsWith("_test");
 
 export function isLibrary(node: Node): boolean {
   return node.kind === "stdlib" || node.kind === "external";
@@ -54,8 +59,13 @@ export function buildIndex(graph: Graph): GraphIndex {
 
   const modules = graph.nodes.filter((n) => n.kind === "module");
   const counts = new Map<string, number>();
+  const testCounts = new Map<string, number>();
+  const testModules = new Set(modules.filter((m) => m.qualname.split(".").some(isTestPart)).map((m) => m.id));
   for (const m of modules) {
-    for (const a of packageAncestors(m.id)) counts.set(a, (counts.get(a) ?? 0) + 1);
+    for (const a of packageAncestors(m.id)) {
+      counts.set(a, (counts.get(a) ?? 0) + 1);
+      if (testModules.has(m.id)) testCounts.set(a, (testCounts.get(a) ?? 0) + 1);
+    }
   }
 
   const tops = new Set(modules.map((m) => m.qualname.split(".")[0]));
@@ -74,6 +84,7 @@ export function buildIndex(graph: Graph): GraphIndex {
     ancestors: packageAncestors,
     isInside: (id, pkg) => id === pkg || ancestors(id).includes(pkg),
     moduleCount: (pkg) => counts.get(pkg) ?? 0,
+    isTest: (id) => testModules.has(id) || (counts.has(id) && testCounts.get(id) === counts.get(id)),
     moduleOf: (id) => {
       const node = nodes.get(id);
       if (!node) return null;

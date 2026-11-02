@@ -27,7 +27,8 @@ def analyze_repo(
 
     builder = _Builder(scan, infos)
     builder.build()
-    issues = builder.issues + find_cycles(builder.edges())
+    package_modules = {f"mod:{sf.module}" for sf in scan.files if sf.is_package}
+    issues = builder.issues + find_cycles(builder.edges(), package_modules)
     apply_metrics(builder.nodes, builder.edges())
 
     generated_at = datetime.now(UTC).isoformat(timespec="seconds") if timestamp else None

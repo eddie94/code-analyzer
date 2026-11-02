@@ -5,6 +5,7 @@ export interface ViewOptions {
   showExternal: boolean;
   /** Include TYPE_CHECKING and function-level imports. */
   showWeak: boolean;
+  hideTests: boolean;
 }
 
 export interface ViewEdge {
@@ -30,6 +31,7 @@ export function unitOf(index: GraphIndex, id: string, options: ViewOptions): str
   const node = index.nodes.get(id);
   if (!node) return null;
   if (isLibrary(node)) return options.showExternal ? id : null;
+  if (options.hideTests && index.isTest(id)) return null;
   for (const ancestor of index.ancestors(id)) {
     if (!options.expanded.has(ancestor)) return ancestor;
   }

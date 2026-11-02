@@ -1,12 +1,11 @@
-import cytoscape, { type Core, type ElementDefinition, type NodeSingular } from "cytoscape";
-import elk from "cytoscape-elk";
+import type { Core, ElementDefinition, LayoutOptions, NodeSingular } from "cytoscape";
 import { useEffect, useMemo, useRef } from "react";
 import { isLibrary, type GraphIndex } from "../model/graphIndex";
 import { computeView, unitOf, type View } from "../model/view";
 import { useStore } from "../store";
+import { cytoscape } from "./cy";
 import { GRAPH_STYLE } from "./graphStyle";
 
-cytoscape.use(elk);
 
 const LAYOUT = {
   name: "elk",
@@ -30,11 +29,16 @@ export function GraphCanvas() {
   const showExternal = useStore((s) => s.showExternal);
   const showWeak = useStore((s) => s.showWeak);
   const showCycles = useStore((s) => s.showCycles);
+  const hideTests = useStore((s) => s.hideTests);
+  const path = useStore((s) => s.path);
   const selected = useStore((s) => s.selected);
   const fitRequest = useStore((s) => s.fitRequest);
   const focusRequest = useStore((s) => s.focusRequest);
 
-  const options = useMemo(() => ({ expanded, showExternal, showWeak }), [expanded, showExternal, showWeak]);
+  const options = useMemo(
+    () => ({ expanded, showExternal, showWeak, hideTests }),
+    [expanded, showExternal, showWeak, hideTests],
+  );
   const view = useMemo(() => computeView(index, options), [index, options]);
   // The visible node that represents the selection (a symbol shows as its module).
   const selectedUnit = useMemo(() => {
@@ -56,10 +60,12 @@ export function GraphCanvas() {
       minZoom: 0.05,
       maxZoom: 3,
     });
-    const { select, toggle } = useStore.getState();
+    const { select, toggle, clearPath } = useStore.getState();
     cy.on("tap", "node", (e) => select(e.target.id()));
     cy.on("tap", (e) => {
-      if (e.target === cy) select(null);
+      if (e.target !== cy) return;
+      select(null);
+      clearPath();
     });
     cy.on("dbltap", "node", (e) => toggle(e.target.id()));
     cy.on("mouseover", "node", (e) => highlight(cy, e.target));
@@ -78,7 +84,7 @@ export function GraphCanvas() {
     // Keep the viewport on large graphs unless a refit was asked for.
     const fit = lastFit.current !== fitRequest || cy.nodes().length < 60;
     lastFit.current = fitRequest;
-    const layout = cy.layout({ ...LAYOUT, fit } as cytoscape.LayoutOptions);
+    const layout = cy.layout({ ...LAYOUT, fit } as LayoutOptions);
     layoutRunning.current = true;
     layout.one("layoutstop", () => {
       layoutRunning.current = false;
@@ -94,6 +100,23 @@ export function GraphCanvas() {
     edges.removeClass("cycle");
     if (showCycles) edges.filter("[?cyclic]").addClass("cycle");
   }, [view, showCycles]);
+
+  // Emphasize a cycle picked in the Issues tab.
+  useEffect(() => {
+    const cy = cyRef.current!;
+    cy.elements().removeClass("on-path off-path");
+    if (!path) return;
+    const units = path.map((m) => unitOf(index, m, options));
+    const onPath = cy.collection();
+    units.forEach((unit, i) => {
+      const next = units[(i + 1) % units.length];
+      if (!unit) return;
+      onPath.merge(cy.getElementById(unit));
+      if (next && next !== unit) onPath.merge(cy.getElementById(`e:${unit}\u0000${next}`));
+    });
+    cy.elements().not(onPath).not(onPath.ancestors()).addClass("off-path");
+    onPath.addClass("on-path");
+  }, [index, view, options, path]);
 
   useEffect(() => {
     if (!layoutRunning.current) syncSelection(cyRef.current!, selectedUnit, false);

@@ -89,13 +89,24 @@ def test_hierarchy(graph: Graph):
 
 
 def test_issues(graph: Graph):
-    found = {(i.kind, tuple(i.nodes), i.runtime) for i in graph.issues}
+    found = {(i.kind, i.severity, tuple(i.nodes), i.through_init) for i in graph.issues}
     assert found == {
-        ("cycle", ("mod:shop.cycle_a", "mod:shop.cycle_b"), True),
-        ("cycle", ("mod:shop.models", "mod:shop.notify", "mod:shop.services.billing"), False),
-        ("parse_error", ("mod:shop.broken",), None),
-        ("unresolved_import", ("mod:shop.bad_import",), None),
+        ("cycle", "warning", ("mod:shop.cycle_a", "mod:shop.cycle_b"), False),
+        ("cycle", "info", ("mod:shop", "mod:shop.registry"), True),
+        (
+            "cycle",
+            "info",
+            ("mod:shop.models", "mod:shop.notify", "mod:shop.services.billing"),
+            None,
+        ),
+        ("parse_error", "error", ("mod:shop.broken",), None),
+        ("unresolved_import", "warning", ("mod:shop.bad_import",), None),
     }
+    lazy_cycle = next(i for i in graph.issues if i.kind == "cycle" and i.runtime is False)
+    assert lazy_cycle.examples == [
+        ["mod:shop.models", "mod:shop.services.billing"],
+        ["mod:shop.notify", "mod:shop.services.billing"],
+    ]
     unresolved = [i.line for i in graph.issues if i.kind == "unresolved_import"]
     assert unresolved == [1, 2, 3]
 
@@ -120,6 +131,18 @@ def test_cycle_containing_runtime_cycle_is_reported_once():
         return Edge(source=f"mod:{source}", target=f"mod:{target}", kind="imports", lazy=lazy)
 
     issues = find_cycles(
-        [edge("a", "b"), edge("b", "a"), edge("b", "c"), edge("c", "a", lazy=True)]
+        [edge("a", "b"), edge("b", "a"), edge("b", "c"), edge("c", "a", lazy=True)], set()
     )
     assert [(i.nodes, i.runtime) for i in issues] == [(["mod:a", "mod:b"], True)]
+
+
+def test_package_metrics(graph: Graph):
+    nodes = {n.id: n for n in graph.nodes}
+    services = nodes["pkg:shop.services"].metrics
+    # in: shop.notify -> billing; out: billing -> shop.models and (lazily) shop.notify
+    assert (services.fan_in, services.fan_out) == (1, 2)
+    assert services.instability == 0.667
+    assert nodes["mod:shop.models"].metrics.max_complexity == 5
+    assert nodes["pkg:shop"].metrics.max_complexity == 5
+    # tests -> shop.models only; nothing imports tests
+    assert nodes["pkg:tests"].metrics.instability == 1.0

@@ -28,7 +28,11 @@ class Metrics(_Model):
     symbols: int | None = None
     fan_in: int | None = None
     fan_out: int | None = None
+    # fan_out / (fan_in + fan_out); for packages, counted across the package boundary.
+    instability: float | None = None
     complexity: int | None = None
+    # Highest complexity among contained functions and methods.
+    max_complexity: int | None = None
 
 
 class Node(_Model):
@@ -69,6 +73,10 @@ class Issue(_Model):
     line: int | None = None
     # For cycles: True when the cycle exists among import-time imports.
     runtime: bool | None = None
+    # For cycles: True when every cycle in the group passes through a package __init__.
+    through_init: bool | None = None
+    # For cycles: a few of the shortest concrete cycles, each as an ordered module list.
+    examples: list[list[str]] = Field(default_factory=list)
 
 
 class Meta(_Model):
